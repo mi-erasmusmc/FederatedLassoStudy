@@ -13,7 +13,7 @@ Imports:
     FederatedLearning (>= 0.2.0.9000),
     PatientLevelPrediction
 Remotes:
-    mi-erasmusmc/FederatedLearning@c4da15fbc68f6e30607037973edfb1a2606c14ac
+    mi-erasmusmc/FederatedLearning@158ae6f8309c100a8b3991e5c7bbadf455d3e1bc
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

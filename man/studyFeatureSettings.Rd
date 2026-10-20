@@ -13,6 +13,8 @@ A named list of \code{featureSettings} objects.
 Age (covariate 1002, divided by 100 when loaded), the female indicator
 (8532001) and binary PhenotypeLibrary phenotype covariates (analysis 49,
 days -365 through 0). A single sex indicator avoids collinearity with the
-intercept. The shared training-only filter removes covariates present in
-fewer than 0.1\% of outer-training entries.
+intercept. The 14 antibiotic-family phenotypes (PhenotypeLibrary 1201-1214)
+are replaced by one indicator for any antibiotic, their logical OR, with
+covariate id 999001049. The shared training-only filter removes covariates
+present in fewer than 0.1\% of outer-training entries.
 }

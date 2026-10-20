@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to release `v0.2.0`.
+framework, pinned to commit `b70e4e9` (after release `v0.2.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -29,7 +29,10 @@ the protocol.
 - age;
 - the female indicator;
 - binary PhenotypeLibrary phenotype covariates (analysis 49, days -365
-  through 0).
+  through 0);
+- one indicator for any antibiotic (covariate `999001049`), replacing the 14
+  antibiotic-family phenotypes 1201-1214 by their logical OR. A family that no
+  patient in a database has counts as zero there.
 
 A shared training-only filter removes covariates present in fewer than 0.1% of
 outer-training entries.
@@ -37,7 +40,6 @@ outer-training entries.
 ## Status
 
 Pending changes from the final-run plan:
-- Combine the 14 antibiotic phenotypes into one indicator.
 - Final method settings: matched pooled/DualAvg database-level tuning, log
   loss for penalty selection, three-fold local lasso CV.
 - External calibration outputs.

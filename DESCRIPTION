@@ -10,10 +10,10 @@ Description: Study package for comparing federated, local and pooled
     pinned release of the FederatedLearning framework.
 License: Apache License (>= 2)
 Imports:
-    FederatedLearning (>= 0.2.0),
+    FederatedLearning (>= 0.2.0.9000),
     PatientLevelPrediction
 Remotes:
-    mi-erasmusmc/FederatedLearning@v0.2.0
+    mi-erasmusmc/FederatedLearning@b70e4e9a4e75a1bb036c764c3746702d806353ab
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

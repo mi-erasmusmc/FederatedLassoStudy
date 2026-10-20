@@ -23,12 +23,16 @@ test_that("population settings match the production extraction", {
   expect_equal(population[names(expected)], expected)
 })
 
-test_that("predictors are age, one sex indicator and phenotypes", {
+test_that("predictors are age, one sex indicator, phenotypes and any antibiotic", {
   features <- studyFeatureSettings()
   expect_identical(names(features), "ageSexPhenotypes")
-  covariateRef <- data.frame(covariateId = c(1002, 8507001, 8532001, 1152049, 4000102),
-    analysisId = c(2, 1, 1, 49, 102))
+  combination <- features$ageSexPhenotypes$combinations[[1]]
+  expect_identical(combination$covariateId, 999001049)
+  expect_identical(combination$components, c(1201049, 1202049, 1203049, 1204049, 1205049, 1206049,
+    1207049, 1208049, 1209049, 1210049, 1211049, 1212049, 1213049, 1214049))
+  covariateRef <- data.frame(covariateId = c(1002, 8507001, 8532001, 1152049, 1201049, 1214049, 1215049, 4000102),
+    analysisId = c(2, 1, 1, 49, 49, 49, 49, 102), covariateName = letters[1:8])
   selected <- FederatedLearning::filterCovariateRef(covariateRef, features$ageSexPhenotypes)
-  expect_identical(selected$covariateId, c(1002, 8532001, 1152049))
+  expect_identical(selected$covariateId, c(1002, 8532001, 1152049, 1215049, 999001049))
   expect_identical(features$ageSexPhenotypes$minFraction, 0.001)
 })

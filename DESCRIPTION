@@ -1,0 +1,22 @@
+Package: FederatedLassoStudy
+Title: Comparing Federated and Pooled Lasso Prediction Across OMOP Databases
+Version: 0.1.0
+Authors@R:
+    person("Egill", "Fridgeirsson", , "e.fridgeirsson@erasmusmc.nl", role = c("aut", "cre"))
+Description: Study package for comparing federated, local and pooled
+    logistic prediction workflows across five OMOP databases with
+    leave-one-database-out external validation. It defines the prediction
+    tasks, predictors and method settings, and runs the comparison with a
+    pinned release of the FederatedLearning framework.
+License: Apache License (>= 2)
+Imports:
+    FederatedLearning (>= 0.1.0),
+    PatientLevelPrediction
+Remotes:
+    mi-erasmusmc/FederatedLearning@v0.1.0
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.0.0

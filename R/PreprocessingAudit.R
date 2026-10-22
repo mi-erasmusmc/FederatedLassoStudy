@@ -9,36 +9,26 @@
 #' ids, for review before export:
 #' - `preprocessingSummary.csv`: one row per task and held-out database with
 #'   candidate, retained and removed predictors, and whether the any-antibiotic
-#'   indicator is retained (`NA` when no training site has it);
+#'   indicator is retained (`NA` when no training site has it, as in the
+#'   wider specifications);
 #' - `predictors.csv`: each candidate covariate id and why it was removed.
 #'
-#' @param dataRoot Directory holding the extracted data as `<task>/<site>`.
-#' @param siteIds Database names: the site directory names under each task.
+#' @inheritParams runStudy
 #' @param outputDirectory A new result directory.
 #' @param tasks Names of [studyTasks()] to audit.
-#' @param taskDirectories Task directory names under `dataRoot`, named by task,
-#'   where they differ from the task names.
-#' @param hosts Worker hosts, one per site or a single host for all sites.
+#' @param featureSets Names of [studyFeatureSettings()] matching the extraction.
 #' @return The export summary, invisibly.
 #' @export
 runPreprocessingAudit <- function(dataRoot, siteIds, outputDirectory,
-                                  tasks = names(studyTasks()), taskDirectories = NULL,
-                                  hosts = "localhost") {
-  studyTaskList <- studyTasks()
-  if (!length(tasks) || !all(tasks %in% names(studyTaskList))) {
-    stop("tasks must name studyTasks(): ", paste(names(studyTaskList), collapse = ", "), call. = FALSE)
-  }
-  if (!is.character(siteIds) || length(siteIds) < 2L || anyDuplicated(siteIds)) {
-    stop("siteIds must name at least two distinct sites", call. = FALSE)
-  }
-  directories <- stats::setNames(tasks, tasks)
-  override <- intersect(names(taskDirectories), tasks)
-  directories[override] <- taskDirectories[override]
+                                  tasks = names(studyTasks()), featureSets = "ageSexPhenotypes",
+                                  taskDirectories = NULL, hosts = "localhost") {
+  sites <- studySites(dataRoot, siteIds, tasks, taskDirectories)
+  featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(
-      taskSettings = studyTaskList[[task]],
-      sites = stats::setNames(file.path(dataRoot, directories[[task]], siteIds), siteIds),
-      featureSettings = studyFeatureSettings(),
+      taskSettings = studyTasks()[[task]],
+      sites = sites[[task]],
+      featureSettings = featureSettings,
       methodSettings = FederatedLearning::createMethodSettings("PooledLasso"),
       outputDirectory = outputDirectory,
       runSettings = FederatedLearning::createRunSettings(hosts = hosts, auditOnly = TRUE)

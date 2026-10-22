@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to release `v0.3.0`.
+framework, pinned to commit `5b38a6b` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -55,12 +55,35 @@ maps tasks to differently named directories. The `preprocessing` directory
 holds per-predictor training counts and stays private. The `export` directory
 holds only predictor counts and covariate ids.
 
+## Predictor Specifications
+
+`studyFeatureSettings()` names three specifications, each matching its own
+extraction: the protocol's `ageSexPhenotypes`, and two wider candidates,
+`ageSexConditions` (age, female and conditions in the prior year) and
+`defaultCovariates` (FeatureExtraction's defaults with a single sex
+indicator). Pass `featureSets` to `runPreprocessingAudit()` or `runStudy()`.
+
+## Running
+
+`runStudy()` runs the comparison with `studyMethods()` and
+`studyMethodSettings()`. Pilots before the final run:
+
+```r
+# Matched pooled lasso and DualAvg penalty selection on one outer fold.
+runTuningPilot("data", sites, "results/tuningPilot",
+  task = "DvtTetraplegia", holdout = "JMDC")
+# DualAvg at that penalty with stopping thresholds 1e-10 and 1e-8, on the
+# outer-training databases only.
+runDualAvgThresholdPilot("data", sites, "results/tuningPilot", "results/thresholdPilot",
+  task = "DvtTetraplegia", holdout = "JMDC")
+```
+
+Each writes an `export` directory of aggregate summaries for review.
+
 ## Status
 
-Pending changes from the final-run plan:
-- Final method settings: matched pooled/DualAvg database-level tuning, log
-  loss for penalty selection, three-fold local lasso CV.
-- Run and reporting scripts, with a pinned `renv.lock`.
+Pending from the final-run plan: the stopping threshold, the predictor
+specification, a pinned `renv.lock` and reporting scripts.
 
 ## Installation
 

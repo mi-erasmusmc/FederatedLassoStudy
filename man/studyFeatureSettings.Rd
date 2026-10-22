@@ -2,19 +2,35 @@
 % Please edit documentation in R/Features.R
 \name{studyFeatureSettings}
 \alias{studyFeatureSettings}
-\title{Study predictor specification}
+\title{Study predictor specifications}
 \usage{
-studyFeatureSettings()
+studyFeatureSettings(featureSets = "ageSexPhenotypes")
+}
+\arguments{
+\item{featureSets}{Names of the specifications to return.}
 }
 \value{
 A named list of \code{featureSettings} objects.
 }
 \description{
-Age (covariate 1002, divided by 100 when loaded), the female indicator
-(8532001) and binary PhenotypeLibrary phenotype covariates (analysis 49,
-days -365 through 0). A single sex indicator avoids collinearity with the
-intercept. The 14 antibiotic-family phenotypes (PhenotypeLibrary 1201-1214)
-are replaced by one indicator for any antibiotic, their logical OR, with
-covariate id 999001049. The shared training-only filter removes covariates
-present in fewer than 0.1\% of outer-training entries.
+Each specification needs its own production extraction:
+\itemize{
+\item \code{ageSexPhenotypes}, the protocol's predictors: age (covariate 1002,
+divided by 100 when loaded), the female indicator (8532001) and binary
+PhenotypeLibrary phenotype covariates (analysis 49, days -365 through 0).
+The 14 antibiotic-family phenotypes (PhenotypeLibrary 1201-1214) are
+replaced by one indicator for any antibiotic, their logical OR, with
+covariate id 999001049.
+\item \code{ageSexConditions}, a wider candidate: age, the female indicator and
+condition occurrence in the prior year (analysis 102).
+\item \code{defaultCovariates}, the widest candidate: FeatureExtraction's default
+covariate analyses with the female indicator in place of both sex
+indicators. It has age groups rather than age, and includes index year,
+race and continuous risk scores, which are not rescaled.
+}
+}
+\details{
+A single sex indicator avoids collinearity with the intercept. The shared
+training-only filter removes covariates present in fewer than 0.1\% of
+outer-training entries.
 }

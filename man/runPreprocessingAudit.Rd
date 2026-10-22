@@ -9,6 +9,7 @@ runPreprocessingAudit(
   siteIds,
   outputDirectory,
   tasks = names(studyTasks()),
+  featureSets = "ageSexPhenotypes",
   taskDirectories = NULL,
   hosts = "localhost"
 )
@@ -21,6 +22,8 @@ runPreprocessingAudit(
 \item{outputDirectory}{A new result directory.}
 
 \item{tasks}{Names of \code{\link[=studyTasks]{studyTasks()}} to audit.}
+
+\item{featureSets}{Names of \code{\link[=studyFeatureSettings]{studyFeatureSettings()}} matching the extraction.}
 
 \item{taskDirectories}{Task directory names under \code{dataRoot}, named by task,
 where they differ from the task names.}
@@ -42,7 +45,8 @@ ids, for review before export:
 \itemize{
 \item \code{preprocessingSummary.csv}: one row per task and held-out database with
 candidate, retained and removed predictors, and whether the any-antibiotic
-indicator is retained (\code{NA} when no training site has it);
+indicator is retained (\code{NA} when no training site has it, as in the
+wider specifications);
 \item \code{predictors.csv}: each candidate covariate id and why it was removed.
 }
 }

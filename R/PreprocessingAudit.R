@@ -22,7 +22,7 @@
 runPreprocessingAudit <- function(dataRoot, siteIds, outputDirectory,
                                   tasks = names(studyTasks()), featureSets = "ageSexPhenotypes",
                                   taskDirectories = NULL, hosts = "localhost") {
-  sites <- studySites(dataRoot, siteIds, tasks, taskDirectories)
+  sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(

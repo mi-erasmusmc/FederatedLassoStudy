@@ -39,10 +39,17 @@ test_that("runStudy runs each task on its own site directories", {
     holdouts = "B", methods = c("PooledLasso", "DualAvg"), featureSets = "ageSexConditions",
     taskDirectories = c(BleedWarfarin = "warfarin"))
   expect_identical(vapply(calls, `[[`, "", "task"), c("DvtTetraplegia", "BleedWarfarin"))
+  expect_identical(unname(calls[[1]]$sites), file.path("root", "DvtTetraplegiaAgeSexConditions", c("A", "B", "C")))
   expect_identical(unname(calls[[2]]$sites), file.path("root", "warfarin", c("A", "B", "C")))
   expect_identical(calls[[1]]$holdouts, "B")
   expect_identical(calls[[1]]$methods, c("PooledLasso", "DualAvg"))
   expect_identical(calls[[1]]$features, "ageSexConditions")
+  default <- studySites("root", c("A", "B"), "BleedWarfarin", "defaultCovariates")
+  expect_identical(unname(default$BleedWarfarin), file.path("root", "BleedWarfarinDefault", c("A", "B")))
+  expect_identical(unname(studySites("root", c("A", "B"), "BleedWarfarin", "ageSexPhenotypes")[[1]]),
+    file.path("root", "BleedWarfarin", c("A", "B")))
+  expect_error(studySites("root", c("A", "B"), "BleedWarfarin", c("ageSexPhenotypes", "defaultCovariates")),
+    "one extraction")
 })
 
 test_that("the threshold pilot refits at the tuned penalty without the outer database", {

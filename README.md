@@ -50,7 +50,9 @@ FederatedLassoStudy::runPreprocessingAudit(
 )
 ```
 
-The data must be laid out as `<dataRoot>/<task>/<site>`; `taskDirectories`
+The data must be laid out as `<dataRoot>/<task><extraction>/<site>`, with no
+suffix for the phenotype extraction and `AgeSexConditions` or `Default` for the
+wider ones; `taskDirectories`
 maps tasks to differently named directories. The `preprocessing` directory
 holds per-predictor training counts and stays private. The `export` directory
 holds only predictor counts and covariate ids.

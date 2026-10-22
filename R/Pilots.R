@@ -70,7 +70,7 @@ runDualAvgThresholdPilot <- function(dataRoot, siteIds, tuningDirectory, outputD
       dualAvgEpsilon = epsilon, dualAvgLambda = tuned$selectedLambda,
       taskDirectories = taskDirectories, hosts = hosts)
   }
-  sites <- studySites(dataRoot, training, task, taskDirectories)[[task]]
+  sites <- studySites(dataRoot, training, task, featureSet, taskDirectories)[[task]]
   invisible(writeThresholdPilotExport(outputDirectory, sites, task, featureSet, epsilons, innerHoldouts))
 }
 

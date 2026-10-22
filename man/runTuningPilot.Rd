@@ -16,7 +16,10 @@ runTuningPilot(
 )
 }
 \arguments{
-\item{dataRoot}{Directory holding the extracted data as \verb{<task>/<site>}.}
+\item{dataRoot}{Directory holding the extracted data as
+\verb{<task><extraction>/<site>}, where the extraction suffix is empty for
+\code{ageSexPhenotypes}, \code{AgeSexConditions} for \code{ageSexConditions} and \code{Default}
+for \code{defaultCovariates}.}
 
 \item{siteIds}{Database names: the site directory names under each task.}
 
@@ -29,7 +32,7 @@ runTuningPilot(
 \item{featureSet}{A specification from \code{\link[=studyFeatureSettings]{studyFeatureSettings()}}.}
 
 \item{taskDirectories}{Task directory names under \code{dataRoot}, named by task,
-where they differ from the task names.}
+where they differ from that layout.}
 
 \item{hosts}{Worker hosts, one per site or a single host for all sites.}
 }

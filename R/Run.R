@@ -5,7 +5,10 @@
 #' artifacts are written to `outputDirectory`; completed combinations there
 #' are reused.
 #'
-#' @param dataRoot Directory holding the extracted data as `<task>/<site>`.
+#' @param dataRoot Directory holding the extracted data as
+#'   `<task><extraction>/<site>`, where the extraction suffix is empty for
+#'   `ageSexPhenotypes`, `AgeSexConditions` for `ageSexConditions` and `Default`
+#'   for `defaultCovariates`.
 #' @param siteIds Database names: the site directory names under each task.
 #' @param outputDirectory Result directory.
 #' @param tasks Names of [studyTasks()] to run.
@@ -14,7 +17,7 @@
 #' @param featureSets Names of [studyFeatureSettings()] matching the extraction.
 #' @param dualAvgEpsilon,dualAvgLambda Passed to [studyMethodSettings()].
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
-#'   where they differ from the task names.
+#'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
 #' @return The results table, invisibly.
 #' @export
@@ -22,7 +25,7 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
                      holdouts = siteIds, methods = studyMethods(),
                      featureSets = "ageSexPhenotypes", dualAvgEpsilon = 1e-10,
                      dualAvgLambda = NULL, taskDirectories = NULL, hosts = "localhost") {
-  sites <- studySites(dataRoot, siteIds, tasks, taskDirectories)
+  sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
   methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
@@ -40,17 +43,23 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
 }
 
 # Site data directories for each task, named by site.
-studySites <- function(dataRoot, siteIds, tasks, taskDirectories = NULL) {
+studySites <- function(dataRoot, siteIds, tasks, featureSets, taskDirectories = NULL) {
   if (!length(tasks) || !all(tasks %in% names(studyTasks()))) {
     stop("tasks must name studyTasks(): ", paste(names(studyTasks()), collapse = ", "), call. = FALSE)
   }
   if (!is.character(siteIds) || length(siteIds) < 2L || anyDuplicated(siteIds)) {
     stop("siteIds must name at least two distinct sites", call. = FALSE)
   }
-  directories <- stats::setNames(tasks, tasks)
+  suffix <- unique(extractionSuffixes[names(studyFeatureSettings(featureSets))])
+  if (length(suffix) != 1L) stop("featureSets must come from one extraction", call. = FALSE)
+  directories <- stats::setNames(paste0(tasks, suffix), tasks)
   override <- intersect(names(taskDirectories), tasks)
   directories[override] <- taskDirectories[override]
   lapply(directories, function(directory) {
     stats::setNames(file.path(dataRoot, directory, siteIds), siteIds)
   })
 }
+
+# Task directory suffix of each predictor specification's extraction.
+extractionSuffixes <- c(ageSexPhenotypes = "", ageSexConditions = "AgeSexConditions",
+  defaultCovariates = "Default")

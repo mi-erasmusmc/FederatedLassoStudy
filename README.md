@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `b38c710` (after release `v0.2.0`).
+framework, pinned to release `v0.3.0`.
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -37,12 +37,29 @@ the protocol.
 A shared training-only filter removes covariates present in fewer than 0.1% of
 outer-training entries.
 
+## Preprocessing Audit
+
+`runPreprocessingAudit()` builds the shared training-only feature filter for
+every task and held-out database without fitting models:
+
+```r
+FederatedLassoStudy::runPreprocessingAudit(
+  dataRoot = "data",
+  siteIds = c("siteA", "siteB", "siteC", "siteD", "siteE"),
+  outputDirectory = "results/preprocessingAudit"
+)
+```
+
+The data must be laid out as `<dataRoot>/<task>/<site>`; `taskDirectories`
+maps tasks to differently named directories. The `preprocessing` directory
+holds per-predictor training counts and stays private. The `export` directory
+holds only predictor counts and covariate ids.
+
 ## Status
 
 Pending changes from the final-run plan:
 - Final method settings: matched pooled/DualAvg database-level tuning, log
   loss for penalty selection, three-fold local lasso CV.
-- External calibration outputs.
 - Run and reporting scripts, with a pinned `renv.lock`.
 
 ## Installation

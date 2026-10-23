@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `819566a` (after release `v0.3.0`).
+framework, pinned to commit `2432716` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection

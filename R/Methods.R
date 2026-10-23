@@ -16,8 +16,8 @@ studyMethods <- function() {
 #'
 #' Penalty tuning uses the framework defaults agreed for the final run: pooled
 #' lasso and DualAvg select their penalties by leave-one-training-database-out
-#' log loss, local lasso models by stratified three-fold CV, and ADAP by
-#' five-fold lead-site CV on deviance. Settings the framework does not default
+#' log loss, and local lasso and ADAP (at the lead site) by outcome-stratified
+#' three-fold CV within the database. Settings the framework does not default
 #' to are those of the previous production run: DualAvg with one local step
 #' per round (`k = 1`), unit step sizes and at most 10,000 rounds; ODAL
 #' initialization with ridge fallback (lambda 1e-8); and a 1e-10 convergence

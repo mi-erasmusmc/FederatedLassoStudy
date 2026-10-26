@@ -27,17 +27,19 @@ studyMethods <- function() {
 #' @param dualAvgEpsilon DualAvg stopping threshold on the successive change in
 #'   loss. 1e-10 as before until the threshold pilot decides.
 #' @param dualAvgLambda A fixed DualAvg penalty instead of tuning, for pilots.
+#' @param dualAvgRounds DualAvg round limit; 10,000 as before, higher only to
+#'   check how far round-limited fits are from converged.
 #' @return A list of `methodSettings` objects.
 #' @export
 studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10,
-                                dualAvgLambda = NULL) {
+                                dualAvgLambda = NULL, dualAvgRounds = 10000L) {
   if (!length(methods) || !all(methods %in% studyMethods())) {
     stop("methods must name studyMethods(): ", paste(studyMethods(), collapse = ", "), call. = FALSE)
   }
   lapply(methods, function(method) {
     options <- switch(method,
       DualAvg = c(list(k = 1L, etaClient = 1, etaServer = 1, epsilon = dualAvgEpsilon,
-        dualavgRounds = 10000L),
+        dualavgRounds = as.integer(dualAvgRounds)),
         if (!is.null(dualAvgLambda)) list(dualavgTuneLambda = FALSE, dualavgLambda = dualAvgLambda)),
       ODAL1 = , ODAL2 = list(odalInit = "ridgeFallback", odalRidgeLambda = 1e-8, epsilon = 1e-10),
       ADAP1 = , ADAP2 = list(epsilon = 1e-10),

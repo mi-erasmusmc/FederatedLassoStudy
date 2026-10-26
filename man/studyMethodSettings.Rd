@@ -7,7 +7,8 @@
 studyMethodSettings(
   methods = studyMethods(),
   dualAvgEpsilon = 1e-10,
-  dualAvgLambda = NULL
+  dualAvgLambda = NULL,
+  dualAvgRounds = 10000L
 )
 }
 \arguments{
@@ -17,6 +18,9 @@ studyMethodSettings(
 loss. 1e-10 as before until the threshold pilot decides.}
 
 \item{dualAvgLambda}{A fixed DualAvg penalty instead of tuning, for pilots.}
+
+\item{dualAvgRounds}{DualAvg round limit; 10,000 as before, higher only to
+check how far round-limited fits are from converged.}
 }
 \value{
 A list of \code{methodSettings} objects.

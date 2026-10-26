@@ -20,6 +20,7 @@ test_that("method settings carry the previous run's non-default options", {
   fixed <- studyMethodSettings("DualAvg", dualAvgEpsilon = 1e-8, dualAvgLambda = 0.02)[[1]]$options
   expect_identical(fixed[c("epsilon", "dualavgTuneLambda", "dualavgLambda")],
     list(epsilon = 1e-8, dualavgTuneLambda = FALSE, dualavgLambda = 0.02))
+  expect_identical(studyMethodSettings("DualAvg", dualAvgRounds = 5e4)[[1]]$options$dualavgRounds, 50000L)
   expect_error(studyMethodSettings("FedAvg"), "studyMethods")
 })
 
@@ -29,7 +30,8 @@ test_that("runStudy runs each task on its own site directories", {
     runComparison = function(taskSettings, sites, featureSettings, methodSettings,
                              outputDirectory, holdouts, runSettings) {
       calls[[length(calls) + 1L]] <<- list(task = taskSettings$name, sites = sites, holdouts = holdouts,
-        methods = vapply(methodSettings, `[[`, "", "method"), features = names(featureSettings))
+        methods = vapply(methodSettings, `[[`, "", "method"), features = names(featureSettings),
+        mirai = runSettings$mirai)
       invisible(NULL)
     },
     readComparisonResults = function(outputDirectory) data.frame(),
@@ -37,8 +39,9 @@ test_that("runStudy runs each task on its own site directories", {
   )
   runStudy("root", c("A", "B", "C"), "out", tasks = c("DvtTetraplegia", "BleedWarfarin"),
     holdouts = "B", methods = c("PooledLasso", "DualAvg"), featureSets = "ageSexConditions",
-    taskDirectories = c(BleedWarfarin = "warfarin"))
+    taskDirectories = c(BleedWarfarin = "warfarin"), mirai = TRUE)
   expect_identical(vapply(calls, `[[`, "", "task"), c("DvtTetraplegia", "BleedWarfarin"))
+  expect_true(calls[[1]]$mirai)
   expect_identical(unname(calls[[1]]$sites), file.path("root", "DvtTetraplegiaAgeSexConditions", c("A", "B", "C")))
   expect_identical(unname(calls[[2]]$sites), file.path("root", "warfarin", c("A", "B", "C")))
   expect_identical(calls[[1]]$holdouts, "B")
@@ -78,5 +81,30 @@ test_that("the threshold pilot refits at the tuned penalty without the outer dat
   expect_error(runDualAvgThresholdPilot("root", sites, "tuning", "out", innerHoldouts = "JMDC"),
     "not the outer held-out database")
   expect_error(runDualAvgThresholdPilot("root", sites, "tuning", "out", holdout = "MDCD"),
+    "No tuned DualAvg penalty")
+})
+
+test_that("the rounds check refits each task's fold at its tuned penalty with more rounds", {
+  calls <- list()
+  local_mocked_bindings(
+    readComparisonResults = function(outputDirectory) data.frame(task = c("DvtTetraplegia", "BleedWarfarin"),
+      method = "DualAvg", featureSet = "ageSexPhenotypes", clientId = "JMDC", selectedLambda = c(4e-4, 7e-4)),
+    .package = "FederatedLearning"
+  )
+  local_mocked_bindings(
+    runStudy = function(dataRoot, siteIds, outputDirectory, ...) {
+      calls[[length(calls) + 1L]] <<- c(list(sites = siteIds, output = outputDirectory), list(...))
+      invisible(NULL)
+    },
+    writeRoundsCheckExport = function(...) data.frame()
+  )
+  sites <- c("MDCD", "MDCR", "CCAE", "JMDC", "OPTUMEHR")
+  runDualAvgRoundsCheck("root", sites, "final", "out", tasks = c("DvtTetraplegia", "BleedWarfarin"))
+  expect_identical(vapply(calls, `[[`, "", "tasks"), c("DvtTetraplegia", "BleedWarfarin"))
+  expect_identical(calls[[1]]$sites, sites)
+  expect_identical(calls[[1]]$holdouts, "JMDC")
+  expect_identical(vapply(calls, `[[`, numeric(1), "dualAvgLambda"), c(4e-4, 7e-4))
+  expect_identical(vapply(calls, `[[`, integer(1), "dualAvgRounds"), c(50000L, 50000L))
+  expect_error(runDualAvgRoundsCheck("root", sites, "final", "out", tasks = "BleedTetraplegia"),
     "No tuned DualAvg penalty")
 })

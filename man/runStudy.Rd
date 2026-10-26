@@ -14,8 +14,10 @@ runStudy(
   featureSets = "ageSexPhenotypes",
   dualAvgEpsilon = 1e-10,
   dualAvgLambda = NULL,
+  dualAvgRounds = 10000L,
   taskDirectories = NULL,
-  hosts = "localhost"
+  hosts = "localhost",
+  mirai = FALSE
 )
 }
 \arguments{
@@ -36,12 +38,16 @@ for \code{defaultCovariates}.}
 
 \item{featureSets}{Names of \code{\link[=studyFeatureSettings]{studyFeatureSettings()}} matching the extraction.}
 
-\item{dualAvgEpsilon, dualAvgLambda}{Passed to \code{\link[=studyMethodSettings]{studyMethodSettings()}}.}
+\item{dualAvgEpsilon, dualAvgLambda, dualAvgRounds}{Passed to \code{\link[=studyMethodSettings]{studyMethodSettings()}}.}
 
 \item{taskDirectories}{Task directory names under \code{dataRoot}, named by task,
 where they differ from that layout.}
 
 \item{hosts}{Worker hosts, one per site or a single host for all sites.}
+
+\item{mirai}{Use mirai workers instead of socket (PSOCK) workers. Results are
+the same; socket workers stall on each message of a few kilobytes or more,
+which makes DualAvg about five times slower at thousands of predictors.}
 }
 \value{
 The results table, invisibly.

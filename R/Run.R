@@ -15,18 +15,22 @@
 #' @param holdouts Databases to hold out, one outer fold each.
 #' @param methods Methods from [studyMethods()].
 #' @param featureSets Names of [studyFeatureSettings()] matching the extraction.
-#' @param dualAvgEpsilon,dualAvgLambda Passed to [studyMethodSettings()].
+#' @param dualAvgEpsilon,dualAvgLambda,dualAvgRounds Passed to [studyMethodSettings()].
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
 #'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
+#' @param mirai Use mirai workers instead of socket (PSOCK) workers. Results are
+#'   the same; socket workers stall on each message of a few kilobytes or more,
+#'   which makes DualAvg about five times slower at thousands of predictors.
 #' @return The results table, invisibly.
 #' @export
 runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTasks()),
                      holdouts = siteIds, methods = studyMethods(),
                      featureSets = "ageSexPhenotypes", dualAvgEpsilon = 1e-10,
-                     dualAvgLambda = NULL, taskDirectories = NULL, hosts = "localhost") {
+                     dualAvgLambda = NULL, dualAvgRounds = 10000L, taskDirectories = NULL,
+                     hosts = "localhost", mirai = FALSE) {
   sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
-  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda)
+  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(
@@ -36,7 +40,7 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
       methodSettings = methodSettings,
       outputDirectory = outputDirectory,
       holdouts = holdouts,
-      runSettings = FederatedLearning::createRunSettings(hosts = hosts)
+      runSettings = FederatedLearning::createRunSettings(hosts = hosts, mirai = mirai)
     )
   }
   invisible(FederatedLearning::readComparisonResults(outputDirectory))

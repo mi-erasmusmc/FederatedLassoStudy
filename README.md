@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `2432716` (after release `v0.3.0`).
+framework, pinned to commit `efdadc7` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -68,7 +68,11 @@ indicator). Pass `featureSets` to `runPreprocessingAudit()` or `runStudy()`.
 ## Running
 
 `runStudy()` runs the comparison with `studyMethods()` and
-`studyMethodSettings()`. Pilots before the final run:
+`studyMethodSettings()`. `mirai = TRUE` runs the sites as mirai daemons rather
+than socket workers; results are the same, and at thousands of predictors
+DualAvg is several times faster because socket workers stall on larger
+messages. Each DualAvg fit also reports its distance from the exact pooled
+lasso optimum at its penalty. Pilots before the final run:
 
 ```r
 # Matched pooled lasso and DualAvg penalty selection on one outer fold.
@@ -78,6 +82,9 @@ runTuningPilot("data", sites, "results/tuningPilot",
 # outer-training databases only.
 runDualAvgThresholdPilot("data", sites, "results/tuningPilot", "results/thresholdPilot",
   task = "DvtTetraplegia", holdout = "JMDC")
+# After the final run: refit the DualAvg models with JMDC held out at their
+# tuned penalties with 50,000 rounds and compare with the 10,000-round fits.
+runDualAvgRoundsCheck("data", sites, "results/final", "results/roundsCheck", mirai = TRUE)
 ```
 
 Each writes an `export` directory of aggregate summaries for review.

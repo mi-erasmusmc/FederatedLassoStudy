@@ -58,20 +58,99 @@ runDualAvgThresholdPilot <- function(dataRoot, siteIds, tuningDirectory, outputD
   if (!length(innerHoldouts) || !all(innerHoldouts %in% training)) {
     stop("innerHoldouts must be training databases, not the outer held-out database", call. = FALSE)
   }
-  results <- FederatedLearning::readComparisonResults(tuningDirectory)
-  tuned <- results[results$task == task & results$method == "DualAvg" &
-    results$featureSet == featureSet & results$clientId == holdout, , drop = FALSE]
-  if (nrow(tuned) != 1L || !is.finite(tuned$selectedLambda)) {
-    stop("No tuned DualAvg penalty for this task, holdout and feature set in tuningDirectory", call. = FALSE)
-  }
+  lambda <- tunedDualAvgLambda(tuningDirectory, task, holdout, featureSet)
   for (epsilon in epsilons) {
     runStudy(dataRoot, training, thresholdDirectory(outputDirectory, epsilon), tasks = task,
       holdouts = innerHoldouts, methods = "DualAvg", featureSets = featureSet,
-      dualAvgEpsilon = epsilon, dualAvgLambda = tuned$selectedLambda,
+      dualAvgEpsilon = epsilon, dualAvgLambda = lambda,
       taskDirectories = taskDirectories, hosts = hosts)
   }
   sites <- studySites(dataRoot, training, task, featureSet, taskDirectories)[[task]]
   invisible(writeThresholdPilotExport(outputDirectory, sites, task, featureSet, epsilons, innerHoldouts))
+}
+
+#' DualAvg round-limit check
+#'
+#' Refits the final DualAvg model of one outer fold per task at its tuned
+#' penalty with a higher round limit and compares it with the round-limited fit
+#' in `resultsDirectory`. Both fits report their distance from the exact pooled
+#' lasso optimum at that penalty. The `export` directory then holds:
+#' - `roundsFits.csv`: per task and fit, rounds, stop reason, penalty, gap to
+#'   the optimum's objective, largest coefficient difference from it, selected
+#'   predictors that differ from it, KKT residual, held-out AUC and log loss,
+#'   and fitting time;
+#' - `roundsAgreement.csv`: per task, coefficient, selection and held-out
+#'   prediction differences between the two fits.
+#'
+#' @inheritParams runStudy
+#' @param resultsDirectory A run holding the round-limited DualAvg fits.
+#' @param holdout The outer held-out database of the folds to check.
+#' @param featureSet A specification from [studyFeatureSettings()].
+#' @param rounds The higher round limit.
+#' @return The agreement table, invisibly.
+#' @export
+runDualAvgRoundsCheck <- function(dataRoot, siteIds, resultsDirectory, outputDirectory,
+                                  tasks = names(studyTasks()), holdout = "JMDC",
+                                  featureSet = "ageSexPhenotypes", rounds = 50000L,
+                                  taskDirectories = NULL, hosts = "localhost", mirai = FALSE) {
+  for (task in tasks) {
+    runStudy(dataRoot, siteIds, outputDirectory, tasks = task, holdouts = holdout, methods = "DualAvg",
+      featureSets = featureSet, dualAvgLambda = tunedDualAvgLambda(resultsDirectory, task, holdout, featureSet),
+      dualAvgRounds = rounds, taskDirectories = taskDirectories, hosts = hosts, mirai = mirai)
+  }
+  sites <- studySites(dataRoot, siteIds, tasks, featureSet, taskDirectories)
+  invisible(writeRoundsCheckExport(resultsDirectory, outputDirectory, sites, tasks, holdout, featureSet))
+}
+
+tunedDualAvgLambda <- function(directory, task, holdout, featureSet) {
+  results <- FederatedLearning::readComparisonResults(directory)
+  tuned <- results[results$task == task & results$method == "DualAvg" &
+    results$featureSet == featureSet & results$clientId == holdout, , drop = FALSE]
+  if (nrow(tuned) != 1L || !is.finite(tuned$selectedLambda)) {
+    stop("No tuned DualAvg penalty for ", task, " with ", holdout, " held out in ", directory, call. = FALSE)
+  }
+  tuned$selectedLambda
+}
+
+writeRoundsCheckExport <- function(resultsDirectory, outputDirectory, sites, tasks, holdout, featureSet) {
+  fitColumns <- c("task", "roundsCompleted", "dualAvgStopReason", "selectedLambda", "nonzeroPredictors",
+    "dualAvgReferenceObjectiveGap", "dualAvgReferenceCoefficientMaxDiff",
+    "dualAvgReferenceSupportMismatch", "dualAvgReferenceKktMaxAbs", "pooledKktMaxAbs", "auc", "logLoss",
+    "fitElapsedSeconds")
+  directories <- c(roundLimited = resultsDirectory, moreRounds = outputDirectory)
+  fits <- lapply(names(directories), function(fit) {
+    results <- FederatedLearning::readComparisonResults(directories[[fit]])
+    results <- results[results$method == "DualAvg" & results$featureSet == featureSet &
+      results$clientId == holdout & results$task %in% tasks, , drop = FALSE]
+    missing <- setdiff(fitColumns, names(results))
+    if (length(missing)) {
+      stop("Results in ", directories[[fit]], " lack ", paste(missing, collapse = ", "),
+        "; rerun them with this framework version", call. = FALSE)
+    }
+    cbind(fit = fit, results[fitColumns])
+  })
+  agreement <- do.call(rbind, lapply(tasks, function(task) {
+    models <- lapply(directories, FederatedLearning::loadModel, task = task, holdout = holdout,
+      feature = featureSet, method = "DualAvg")
+    coefficients <- lapply(models, coefficientVector)
+    if (!identical(names(coefficients$roundLimited), names(coefficients$moreRounds))) {
+      stop("The two ", task, " fits use different feature maps", call. = FALSE)
+    }
+    predictions <- lapply(models, FederatedLearning::predictModel, sitePath = sites[[task]][[holdout]],
+      taskSettings = studyTasks()[[task]])
+    support <- function(w) names(w)[w != 0 & names(w) != "(Intercept)"]
+    probability <- abs(predictions$moreRounds$probability - predictions$roundLimited$probability)
+    data.frame(task = task,
+      coefficientMaxAbsDiff = max(abs(coefficients$moreRounds - coefficients$roundLimited)),
+      supportOnlyRoundLimited = length(setdiff(support(coefficients$roundLimited), support(coefficients$moreRounds))),
+      supportOnlyMoreRounds = length(setdiff(support(coefficients$moreRounds), support(coefficients$roundLimited))),
+      linearPredictorMaxAbsDiff = max(abs(predictions$moreRounds$linearPredictor -
+        predictions$roundLimited$linearPredictor)),
+      probabilityMaxAbsDiff = max(probability),
+      probabilityP99AbsDiff = unname(stats::quantile(probability, 0.99)))
+  }))
+  writeExport(outputDirectory, list(roundsFits = do.call(rbind, fits), roundsAgreement = agreement))
+  agreement
 }
 
 thresholdDirectory <- function(outputDirectory, epsilon) {

@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `efdadc7` (after release `v0.3.0`).
+framework, pinned to commit `4ba6aa7` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -68,7 +68,13 @@ indicator). Pass `featureSets` to `runPreprocessingAudit()` or `runStudy()`.
 ## Running
 
 `runStudy()` runs the comparison with `studyMethods()` and
-`studyMethodSettings()`. `mirai = TRUE` runs the sites as mirai daemons rather
+`studyMethodSettings()`. Its default wide `ageSexConditions` comparison excludes
+ODAL1 and ODAL2; they can still be explicitly selected for a diagnostic run.
+ADAP1 and ADAP2 use sparse glmnet with outcome-stratified three-fold CV for
+local initialization by default. Set
+`adapInitBackend = "glmnet"` to use the framework's original dense-or-sparse
+policy, or use a new results directory when changing the initializer.
+`mirai = TRUE` runs the sites as mirai daemons rather
 than socket workers; results are the same, and at thousands of predictors
 DualAvg is several times faster because socket workers stall on larger
 messages. Each DualAvg fit also reports its distance from the exact pooled

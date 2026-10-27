@@ -8,7 +8,8 @@ studyMethodSettings(
   methods = studyMethods(),
   dualAvgEpsilon = 1e-10,
   dualAvgLambda = NULL,
-  dualAvgRounds = 10000L
+  dualAvgRounds = 10000L,
+  adapInitBackend = "glmnet_sparse"
 )
 }
 \arguments{
@@ -21,6 +22,9 @@ loss. 1e-10 as before until the threshold pilot decides.}
 
 \item{dualAvgRounds}{DualAvg round limit; 10,000 as before, higher only to
 check how far round-limited fits are from converged.}
+
+\item{adapInitBackend}{Local ADAP initializer: \code{"glmnet_sparse"} (the study
+default), \code{"glmnet"} or \code{"cyclops"}. \code{NULL} uses the framework default.}
 }
 \value{
 A list of \code{methodSettings} objects.
@@ -29,7 +33,8 @@ A list of \code{methodSettings} objects.
 Penalty tuning uses the framework defaults agreed for the final run: pooled
 lasso and DualAvg select their penalties by leave-one-training-database-out
 log loss, and local lasso and ADAP (at the lead site) by outcome-stratified
-three-fold CV within the database. Settings the framework does not default
+three-fold CV within the database. ADAP initialization also uses a separate
+outcome-stratified three-fold CV. Settings the framework does not default
 to are those of the previous production run: DualAvg with one local step
 per round (\code{k = 1}), unit step sizes and at most 10,000 rounds; ODAL
 initialization with ridge fallback (lambda 1e-8); and a 1e-10 convergence

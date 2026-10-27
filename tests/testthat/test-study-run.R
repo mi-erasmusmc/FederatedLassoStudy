@@ -15,12 +15,24 @@ test_that("method settings carry the previous run's non-default options", {
   expect_identical(options$DualAvg, list(k = 1L, etaClient = 1, etaServer = 1, epsilon = 1e-10,
     dualavgRounds = 10000L))
   expect_identical(options$ODAL2$odalInit, "ridgeFallback")
-  expect_identical(options$ADAP2, list(epsilon = 1e-10))
+  expect_identical(options$ADAP1$adapInitBackend, "glmnet_sparse")
+  expect_identical(options$ADAP2, list(epsilon = 1e-10, adapInitFolds = 3L,
+    adapInitStratify = TRUE, adapInitBackend = "glmnet_sparse"))
   expect_identical(options$PooledLasso, list())
   fixed <- studyMethodSettings("DualAvg", dualAvgEpsilon = 1e-8, dualAvgLambda = 0.02)[[1]]$options
   expect_identical(fixed[c("epsilon", "dualavgTuneLambda", "dualavgLambda")],
     list(epsilon = 1e-8, dualavgTuneLambda = FALSE, dualavgLambda = 0.02))
   expect_identical(studyMethodSettings("DualAvg", dualAvgRounds = 5e4)[[1]]$options$dualavgRounds, 50000L)
+  adap <- studyMethodSettings(c("ADAP1", "ADAP2", "PooledLasso"), adapInitBackend = "cyclops")
+  expect_identical(adap[[1]]$options$adapInitBackend, "cyclops")
+  expect_identical(adap[[2]]$options$adapInitBackend, "cyclops")
+  expect_null(adap[[3]]$options$adapInitBackend)
+  expect_identical(studyMethodSettings("ADAP2", adapInitBackend = "glmnet_sparse")[[1]]$options$adapInitBackend,
+    "glmnet_sparse")
+  expect_identical(studyMethodSettings("ADAP2", adapInitBackend = "glmnet")[[1]]$options$adapInitBackend,
+    "glmnet")
+  expect_null(studyMethodSettings("ADAP2", adapInitBackend = NULL)[[1]]$options$adapInitBackend)
+  expect_error(studyMethodSettings("ADAP1", adapInitBackend = "invalid"), "should be one of")
   expect_error(studyMethodSettings("FedAvg"), "studyMethods")
 })
 
@@ -31,7 +43,7 @@ test_that("runStudy runs each task on its own site directories", {
                              outputDirectory, holdouts, runSettings) {
       calls[[length(calls) + 1L]] <<- list(task = taskSettings$name, sites = sites, holdouts = holdouts,
         methods = vapply(methodSettings, `[[`, "", "method"), features = names(featureSettings),
-        mirai = runSettings$mirai)
+        mirai = runSettings$mirai, options = lapply(methodSettings, `[[`, "options"))
       invisible(NULL)
     },
     readComparisonResults = function(outputDirectory) data.frame(),
@@ -53,6 +65,22 @@ test_that("runStudy runs each task on its own site directories", {
     file.path("root", "BleedWarfarin", c("A", "B")))
   expect_error(studySites("root", c("A", "B"), "BleedWarfarin", c("ageSexPhenotypes", "defaultCovariates")),
     "one extraction")
+  runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B",
+    methods = c("ADAP1", "ADAP2"), adapInitBackend = "cyclops")
+  expect_identical(calls[[3]]$options[[1]]$adapInitBackend, "cyclops")
+  expect_identical(calls[[3]]$options[[2]]$adapInitBackend, "cyclops")
+  runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B",
+    featureSets = "ageSexConditions")
+  expect_false(any(c("ODAL1", "ODAL2") %in% calls[[4]]$methods))
+  runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B")
+  expect_true(all(c("ODAL1", "ODAL2") %in% calls[[5]]$methods))
+  adapOptions <- calls[[5]]$options[calls[[5]]$methods %in% c("ADAP1", "ADAP2")]
+  expect_true(all(vapply(adapOptions, function(x) identical(x$adapInitBackend, "glmnet_sparse"), logical(1))))
+  expect_true(all(vapply(adapOptions, function(x) identical(x$adapInitFolds, 3L) &&
+    isTRUE(x$adapInitStratify), logical(1))))
+  runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B",
+    featureSets = "ageSexConditions", methods = "ODAL1")
+  expect_identical(calls[[6]]$methods, "ODAL1")
 })
 
 test_that("the threshold pilot refits at the tuned penalty without the outer database", {

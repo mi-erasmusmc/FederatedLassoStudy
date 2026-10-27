@@ -13,9 +13,12 @@
 #' @param outputDirectory Result directory.
 #' @param tasks Names of [studyTasks()] to run.
 #' @param holdouts Databases to hold out, one outer fold each.
-#' @param methods Methods from [studyMethods()].
+#' @param methods Methods from [studyMethods()]. The default excludes ODAL1
+#'   and ODAL2 for `ageSexConditions`; explicitly named methods remain available.
 #' @param featureSets Names of [studyFeatureSettings()] matching the extraction.
 #' @param dualAvgEpsilon,dualAvgLambda,dualAvgRounds Passed to [studyMethodSettings()].
+#' @param adapInitBackend Local ADAP initializer, passed to [studyMethodSettings()].
+#'   Defaults to `"glmnet_sparse"`.
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
 #'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
@@ -28,9 +31,12 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
                      holdouts = siteIds, methods = studyMethods(),
                      featureSets = "ageSexPhenotypes", dualAvgEpsilon = 1e-10,
                      dualAvgLambda = NULL, dualAvgRounds = 10000L, taskDirectories = NULL,
-                     hosts = "localhost", mirai = FALSE) {
+                     hosts = "localhost", mirai = FALSE, adapInitBackend = "glmnet_sparse") {
+  if (missing(methods) && "ageSexConditions" %in% featureSets) {
+    methods <- setdiff(studyMethods(), c("ODAL1", "ODAL2"))
+  }
   sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
-  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds)
+  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds, adapInitBackend)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(

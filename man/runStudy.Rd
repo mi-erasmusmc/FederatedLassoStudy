@@ -17,7 +17,8 @@ runStudy(
   dualAvgRounds = 10000L,
   taskDirectories = NULL,
   hosts = "localhost",
-  mirai = FALSE
+  mirai = FALSE,
+  adapInitBackend = "glmnet_sparse"
 )
 }
 \arguments{
@@ -34,7 +35,8 @@ for \code{defaultCovariates}.}
 
 \item{holdouts}{Databases to hold out, one outer fold each.}
 
-\item{methods}{Methods from \code{\link[=studyMethods]{studyMethods()}}.}
+\item{methods}{Methods from \code{\link[=studyMethods]{studyMethods()}}. The default excludes ODAL1
+and ODAL2 for \code{ageSexConditions}; explicitly named methods remain available.}
 
 \item{featureSets}{Names of \code{\link[=studyFeatureSettings]{studyFeatureSettings()}} matching the extraction.}
 
@@ -48,6 +50,9 @@ where they differ from that layout.}
 \item{mirai}{Use mirai workers instead of socket (PSOCK) workers. Results are
 the same; socket workers stall on each message of a few kilobytes or more,
 which makes DualAvg about five times slower at thousands of predictors.}
+
+\item{adapInitBackend}{Local ADAP initializer, passed to \code{\link[=studyMethodSettings]{studyMethodSettings()}}.
+Defaults to \code{"glmnet_sparse"}.}
 }
 \value{
 The results table, invisibly.

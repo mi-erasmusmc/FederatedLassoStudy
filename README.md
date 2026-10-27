@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `4ba6aa7` (after release `v0.3.0`).
+framework, pinned to commit `4e80715` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -78,7 +78,10 @@ policy, or use a new results directory when changing the initializer.
 than socket workers; results are the same, and at thousands of predictors
 DualAvg is several times faster because socket workers stall on larger
 messages. Each DualAvg fit also reports its distance from the exact pooled
-lasso optimum at its penalty. Pilots before the final run:
+lasso optimum at its penalty. Each run adds a row to `run_manifest.csv` in
+the output directory with the framework and study commits, R, the BLAS and a
+settings hash, and warns when a resumed run uses other code or settings. Use
+one output directory per R session. Pilots before the final run:
 
 ```r
 # Matched pooled lasso and DualAvg penalty selection on one outer fold.

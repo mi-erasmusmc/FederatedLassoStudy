@@ -23,9 +23,9 @@ test_that("method settings carry the previous run's non-default options", {
   expect_identical(fixed[c("epsilon", "dualavgTuneLambda", "dualavgLambda")],
     list(epsilon = 1e-8, dualavgTuneLambda = FALSE, dualavgLambda = 0.02))
   expect_identical(studyMethodSettings("DualAvg", dualAvgRounds = 5e4)[[1]]$options$dualavgRounds, 50000L)
-  adap <- studyMethodSettings(c("ADAP1", "ADAP2", "PooledLasso"), adapInitBackend = "cyclops")
-  expect_identical(adap[[1]]$options$adapInitBackend, "cyclops")
-  expect_identical(adap[[2]]$options$adapInitBackend, "cyclops")
+  adap <- studyMethodSettings(c("ADAP1", "ADAP2", "PooledLasso"), adapInitBackend = "glmnet")
+  expect_identical(adap[[1]]$options$adapInitBackend, "glmnet")
+  expect_identical(adap[[2]]$options$adapInitBackend, "glmnet")
   expect_null(adap[[3]]$options$adapInitBackend)
   expect_identical(studyMethodSettings("ADAP2", adapInitBackend = "glmnet_sparse")[[1]]$options$adapInitBackend,
     "glmnet_sparse")
@@ -66,9 +66,9 @@ test_that("runStudy runs each task on its own site directories", {
   expect_error(studySites("root", c("A", "B"), "BleedWarfarin", c("ageSexPhenotypes", "defaultCovariates")),
     "one extraction")
   runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B",
-    methods = c("ADAP1", "ADAP2"), adapInitBackend = "cyclops")
-  expect_identical(calls[[3]]$options[[1]]$adapInitBackend, "cyclops")
-  expect_identical(calls[[3]]$options[[2]]$adapInitBackend, "cyclops")
+    methods = c("ADAP1", "ADAP2"), adapInitBackend = "glmnet")
+  expect_identical(calls[[3]]$options[[1]]$adapInitBackend, "glmnet")
+  expect_identical(calls[[3]]$options[[2]]$adapInitBackend, "glmnet")
   runStudy("root", c("A", "B", "C"), "out", tasks = "DvtTetraplegia", holdouts = "B",
     featureSets = "ageSexConditions")
   expect_false(any(c("ODAL1", "ODAL2") %in% calls[[4]]$methods))

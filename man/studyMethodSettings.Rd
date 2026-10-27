@@ -24,7 +24,7 @@ loss. 1e-10 as before until the threshold pilot decides.}
 check how far round-limited fits are from converged.}
 
 \item{adapInitBackend}{Local ADAP initializer: \code{"glmnet_sparse"} (the study
-default), \code{"glmnet"} or \code{"cyclops"}. \code{NULL} uses the framework default.}
+default) or \code{"glmnet"}. \code{NULL} uses the framework default.}
 }
 \value{
 A list of \code{methodSettings} objects.

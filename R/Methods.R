@@ -31,7 +31,7 @@ studyMethods <- function() {
 #' @param dualAvgRounds DualAvg round limit; 10,000 as before, higher only to
 #'   check how far round-limited fits are from converged.
 #' @param adapInitBackend Local ADAP initializer: `"glmnet_sparse"` (the study
-#'   default), `"glmnet"` or `"cyclops"`. `NULL` uses the framework default.
+#'   default) or `"glmnet"`. `NULL` uses the framework default.
 #' @return A list of `methodSettings` objects.
 #' @export
 studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10,
@@ -40,7 +40,7 @@ studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10
   if (!length(methods) || !all(methods %in% studyMethods())) {
     stop("methods must name studyMethods(): ", paste(studyMethods(), collapse = ", "), call. = FALSE)
   }
-  if (!is.null(adapInitBackend)) adapInitBackend <- match.arg(adapInitBackend, c("glmnet", "glmnet_sparse", "cyclops"))
+  if (!is.null(adapInitBackend)) adapInitBackend <- match.arg(adapInitBackend, c("glmnet", "glmnet_sparse"))
   lapply(methods, function(method) {
     options <- switch(method,
       DualAvg = c(list(k = 1L, etaClient = 1, etaServer = 1, epsilon = dualAvgEpsilon,

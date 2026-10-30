@@ -77,4 +77,17 @@ test_that("the report figures are drawn from the report tables", {
   expect_setequal(basename(paths), c("discrimination.pdf", "discrimination.png", "localBaselines.pdf",
     "localBaselines.png"))
   expect_true(all(file.size(paths) > 0))
+
+  predicted <- exp(seq(log(0.005), log(0.1), length.out = 20))
+  curves <- merge(data.frame(task = "BleedWarfarin", featureSet = "ageSexPhenotypes", heldOutDatabase = c("A", "B"),
+    stringsAsFactors = FALSE), data.frame(method = c("PooledLasso", "DualAvg", "ODAL1", "ADAP1"),
+    stringsAsFactors = FALSE))
+  curves <- merge(curves, data.frame(predicted = predicted))
+  curves$observed <- curves$predicted
+  curves$predicted[curves$method == "ODAL1" & curves$heldOutDatabase == "A" & curves$predicted > 0.09] <- 0.999
+  curveDirectory <- file.path(out, "curves")
+  dir.create(file.path(curveDirectory, "export"), recursive = TRUE)
+  utils::write.csv(curves, file.path(curveDirectory, "export", "calibrationCurves.csv"), row.names = FALSE)
+  paths <- writeStudyFigures(out, calibrationCurveDirectory = curveDirectory)
+  expect_true(all(file.size(file.path(out, c("calibration.pdf", "calibration.png"))) > 0))
 })

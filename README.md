@@ -112,7 +112,7 @@ alone, so it runs away from the data:
 writeStudyReport(Sys.glob("results/final/*"), "results/report",
   coefficientAgreementDirectory = "results/coefficientAgreement",
   roundsCheckDirectories = Sys.glob("results/roundsCheck/*"))
-writeStudyFigures("results/report")
+writeStudyFigures("results/report", calibrationCurveDirectory = "results/calibrationCurves")
 # Calibration curves of the federated and aggregated workflows, by task and predictor set.
 writeCalibrationFigures("results/calibrationCurves", "results/report")
 ```

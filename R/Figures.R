@@ -6,15 +6,22 @@
 #'   Flagged fits are drawn hollow;
 #' - `localBaselines`: per task and held-out database, the AUCs of the
 #'   single-source models beside coefficient averaging, probability
-#'   ensembling and pooled lasso, by predictor set.
+#'   ensembling and pooled lasso, by predictor set;
+#' - `calibration`, with `calibrationCurveDirectory`: (A) each workflow's
+#'   calibration-in-the-large and slope in every task and held-out database,
+#'   and (B) the curves of pooled lasso, DualAvg and ODAL1 for bleeding after
+#'   warfarin, both with phenotype predictors.
 #'
 #' Each figure is written as PDF and PNG. Requires ggplot2.
 #'
 #' @param reportDirectory Output of [writeStudyReport()].
 #' @param outputDirectory Directory for the figures; defaults to `reportDirectory`.
+#' @param calibrationCurveDirectory Output of [runCalibrationCurveExport()], or
+#'   `NULL` to skip the calibration figure.
 #' @return The figure paths, invisibly.
 #' @export
-writeStudyFigures <- function(reportDirectory, outputDirectory = reportDirectory) {
+writeStudyFigures <- function(reportDirectory, outputDirectory = reportDirectory,
+                              calibrationCurveDirectory = NULL) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("writeStudyFigures() needs the ggplot2 package", call. = FALSE)
   }
@@ -25,6 +32,11 @@ writeStudyFigures <- function(reportDirectory, outputDirectory = reportDirectory
     discrimination = list(plot = discriminationFigure(evaluations), width = 7.5, height = 5),
     localBaselines = list(plot = localBaselineFigure(local, evaluations), width = 7.5, height = 6.5)
   )
+  if (!is.null(calibrationCurveDirectory)) {
+    curves <- utils::read.csv(file.path(calibrationCurveDirectory, "export", "calibrationCurves.csv"),
+      stringsAsFactors = FALSE)
+    figures$calibration <- list(plot = calibrationSummaryFigure(evaluations, curves), width = 7.5, height = 9)
+  }
   paths <- character()
   for (name in names(figures)) {
     for (extension in c("pdf", "png")) {
@@ -144,6 +156,103 @@ writeCalibrationFigures <- function(calibrationCurveDirectory, outputDirectory) 
     }
   }
   invisible(paths)
+}
+
+# Main calibration figure, phenotype predictors: the per-evaluation measures
+# show that held-out databases differ more than workflows, and the warfarin
+# curves show DualAvg against ODAL1 beside pooled lasso.
+calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPhenotypes",
+                                     curveTask = "BleedWarfarin") {
+  .data <- ggplot2::.data
+  highlighted <- c(PooledLasso = "Pooled lasso", DualAvg = "DualAvg", ODAL1 = "ODAL1")
+  groups <- c(highlighted, other = "Other workflows")
+  colours <- stats::setNames(c(figureInk[["primary"]], figureTaskColors[1:2], figureInk[["muted"]]), groups)
+  groupOf <- function(method) {
+    factor(ifelse(method %in% names(highlighted), highlighted[method], groups[["other"]]), levels = groups)
+  }
+  methods <- c("PooledLasso", names(figureLabels$method))
+  rows <- evaluations[evaluations$featureSet == featureSet & evaluations$method %in% methods &
+    is.finite(evaluations$calibrationInTheLarge), , drop = FALSE]
+  rows$group <- groupOf(rows$method)
+  rows$task <- factor(figureLabels$task[rows$task], levels = figureLabels$task)
+  rows$database <- factor(rows$heldOutDatabase, levels = rev(sort(unique(rows$heldOutDatabase))))
+  measures <- c("Calibration-in-the-large", "Calibration slope")
+  long <- rbind(
+    data.frame(rows[c("task", "database", "group", "flagged")], measure = measures[[1]],
+      value = rows$calibrationInTheLarge, ideal = 0),
+    data.frame(rows[c("task", "database", "group", "flagged")], measure = measures[[2]],
+      value = rows$calibrationSlope, ideal = 1))
+  long$measure <- factor(long$measure, levels = measures)
+  long$shape <- paste(long$group, long$flagged)
+  # Highlighted workflows sit above and below the row, other workflows on it.
+  long$y <- as.numeric(long$database) + c(0, 0.22, -0.22, 0)[as.integer(long$group)]
+  long <- long[order(long$group != groups[["other"]]), ]
+  shapeValues <- stats::setNames(c(3, 3, 16, 1, 17, 2, 1, 1), paste(rep(groups, each = 2), c(FALSE, TRUE)))
+  ideal <- unique(long[c("measure", "ideal")])
+  levels <- levels(long$database)
+  measuresPlot <- ggplot2::ggplot(long, ggplot2::aes(x = .data$value, y = .data$y)) +
+    ggplot2::geom_vline(data = ideal, ggplot2::aes(xintercept = .data$ideal), colour = figureInk[["muted"]],
+      linewidth = 0.4) +
+    ggplot2::geom_point(ggplot2::aes(colour = .data$group, shape = .data$shape), size = 1.7, stroke = 0.6) +
+    ggplot2::facet_grid(task ~ measure, scales = "free_x", switch = "y") +
+    ggplot2::scale_y_continuous(breaks = seq_along(levels), labels = levels) +
+    ggplot2::scale_colour_manual(values = colours, drop = FALSE) +
+    ggplot2::scale_shape_manual(values = shapeValues, guide = "none") +
+    ggplot2::guides(colour = ggplot2::guide_legend(override.aes = list(shape = c(3, 16, 17, 1), size = 2.2))) +
+    ggplot2::labs(x = NULL, y = NULL, tag = "A",
+      caption = paste0("Held-out database per row. Ideal: 0 for calibration-in-the-large, 1 for the slope.\n",
+        "Negative calibration-in-the-large means predicted risk above observed. Hollow triangle: flagged ODAL1 fit.")) +
+    figureTheme() +
+    ggplot2::theme(strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 90),
+      plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
+
+  curve <- curves[curves$featureSet == featureSet & curves$task == curveTask &
+    curves$method %in% names(highlighted), , drop = FALSE]
+  curve$group <- groupOf(curve$method)
+  curve$database <- factor(curve$heldOutDatabase, levels = sort(unique(curve$heldOutDatabase)))
+  # The axes cover every curve point below 50% risk; points above are noted.
+  shown <- curve$predicted <= 0.5 & curve$observed <= 0.5
+  limits <- c(min(curve$predicted, curve$observed) / 1.15,
+    max(curve$predicted[shown], curve$observed[shown]) * 1.15)
+  outside <- !shown
+  offScale <- stats::aggregate(list(points = outside), curve[c("database", "group")], sum)
+  offScale <- offScale[offScale$points > 0, , drop = FALSE]
+  offScale$label <- sprintf("%s: %d curve %s\nat %s predicted risk", offScale$group, offScale$points,
+    ifelse(offScale$points == 1, "point", "points"),
+    vapply(seq_len(nrow(offScale)), function(i) {
+      at <- curve$predicted[outside & curve$database == offScale$database[[i]] & curve$group == offScale$group[[i]]]
+      at <- unique(formatC(100 * range(at), format = "f", digits = 1))
+      paste0(paste(at, collapse = "-"), "%")
+    }, character(1)))
+  breaks <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
+  percent <- function(x) paste0(formatC(100 * x, format = "fg", digits = 2), "%")
+  curvePlot <- ggplot2::ggplot(curve, ggplot2::aes(x = .data$predicted, y = .data$observed, colour = .data$group)) +
+    ggplot2::geom_abline(colour = figureInk[["muted"]], linewidth = 0.3, linetype = "22") +
+    ggplot2::geom_line(linewidth = 0.55) +
+    ggplot2::geom_text(data = offScale, ggplot2::aes(label = .data$label), x = -Inf, y = Inf, hjust = -0.04,
+      vjust = 1.4, size = 2.1, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
+    ggplot2::facet_grid(. ~ database) +
+    ggplot2::scale_colour_manual(values = colours, guide = "none") +
+    ggplot2::scale_x_log10(breaks = breaks, labels = percent) +
+    ggplot2::scale_y_log10(breaks = breaks, labels = percent) +
+    ggplot2::coord_cartesian(xlim = limits, ylim = limits, expand = FALSE) +
+    ggplot2::labs(x = "Predicted risk", y = "Observed risk (smoothed)", tag = "B",
+      title = paste0(figureLabels$task[[curveTask]], ": calibration curves by held-out database"),
+      caption = paste("Curves span the 1st to 99th percentile of predicted risk in the held-out database.",
+        "Dashed: ideal calibration. Logarithmic axes.")) +
+    figureTheme() +
+    ggplot2::theme(panel.border = ggplot2::element_rect(fill = NA, colour = figureInk[["grid"]]),
+      panel.grid.major.y = ggplot2::element_line(colour = figureInk[["grid"]], linewidth = 0.3),
+      panel.spacing = ggplot2::unit(6, "pt"), plot.title = ggplot2::element_text(size = 9),
+      strip.text = ggplot2::element_text(face = "bold", hjust = 0.5),
+      axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
+      plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
+  # Building the grobs needs a device; a null one leaves no Rplots.pdf behind.
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  grid::grobTree(
+    grid::grobTree(ggplot2::ggplotGrob(measuresPlot), vp = grid::viewport(y = 1, height = 0.68, just = "top")),
+    grid::grobTree(ggplot2::ggplotGrob(curvePlot), vp = grid::viewport(y = 0, height = 0.32, just = "bottom")))
 }
 
 calibrationFigure <- function(rows) {

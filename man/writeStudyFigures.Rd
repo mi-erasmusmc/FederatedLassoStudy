@@ -4,12 +4,19 @@
 \alias{writeStudyFigures}
 \title{Study report figures}
 \usage{
-writeStudyFigures(reportDirectory, outputDirectory = reportDirectory)
+writeStudyFigures(
+  reportDirectory,
+  outputDirectory = reportDirectory,
+  calibrationCurveDirectory = NULL
+)
 }
 \arguments{
 \item{reportDirectory}{Output of \code{\link[=writeStudyReport]{writeStudyReport()}}.}
 
 \item{outputDirectory}{Directory for the figures; defaults to \code{reportDirectory}.}
+
+\item{calibrationCurveDirectory}{Output of \code{\link[=runCalibrationCurveExport]{runCalibrationCurveExport()}}, or
+\code{NULL} to skip the calibration figure.}
 }
 \value{
 The figure paths, invisibly.
@@ -22,7 +29,11 @@ every task and held-out database, with the mean, by predictor set.
 Flagged fits are drawn hollow;
 \item \code{localBaselines}: per task and held-out database, the AUCs of the
 single-source models beside coefficient averaging, probability
-ensembling and pooled lasso, by predictor set.
+ensembling and pooled lasso, by predictor set;
+\item \code{calibration}, with \code{calibrationCurveDirectory}: (A) each workflow's
+calibration-in-the-large and slope in every task and held-out database,
+and (B) the curves of pooled lasso, DualAvg and ODAL1 for bleeding after
+warfarin, both with phenotype predictors.
 }
 }
 \details{

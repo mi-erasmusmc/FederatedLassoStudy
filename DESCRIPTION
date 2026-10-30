@@ -11,6 +11,8 @@ Description: Study package for comparing federated, local and pooled
 License: Apache License (>= 2)
 Imports:
     FederatedLearning (>= 0.3.0.9000),
+    grDevices,
+    grid,
     PatientLevelPrediction,
     stats,
     utils

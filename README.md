@@ -97,6 +97,8 @@ runDualAvgRoundsCheck("data", sites, "results/final", "results/roundsCheck", mir
 # After the final run: compare each saved model's coefficients with pooled
 # lasso of the same fold. Reads saved models only, no site data.
 runCoefficientAgreement(Sys.glob("results/final/*"), "results/coefficientAgreement")
+# Every saved model's calibration curve (50 percentile points with 95% intervals).
+runCalibrationCurveExport(Sys.glob("results/final/*"), "results/calibrationCurves")
 ```
 
 Each writes an `export` directory of aggregate summaries for review.

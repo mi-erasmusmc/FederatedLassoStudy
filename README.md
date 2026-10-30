@@ -103,10 +103,18 @@ Each writes an `export` directory of aggregate summaries for review.
 `runCoefficientAgreement()` also exports every compared model's coefficients
 by covariate id.
 
+`writeStudyReport()` builds the manuscript tables from these exported CSVs
+alone, so it runs away from the data:
+
+```r
+writeStudyReport(Sys.glob("results/final/*"), "results/report",
+  coefficientAgreementDirectory = "results/coefficientAgreement",
+  roundsCheckDirectories = Sys.glob("results/roundsCheck/*"))
+```
+
 ## Status
 
-Pending from the final-run plan: the stopping threshold, the predictor
-specification, a pinned `renv.lock` and reporting scripts.
+Pending from the final-run plan: a pinned `renv.lock` and report figures.
 
 ## Installation
 

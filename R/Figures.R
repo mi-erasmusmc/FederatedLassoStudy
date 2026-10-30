@@ -110,6 +110,95 @@ discriminationFigure <- function(evaluations) {
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
 }
 
+#' Calibration curve figures
+#'
+#' Draws the curves of [runCalibrationCurveExport()], one figure per task and
+#' predictor set: a row per held-out database and a column per workflow, each
+#' curve with its pointwise 95% interval over pooled lasso and the diagonal of
+#' ideal calibration. Both axes are logarithmic and shared within a figure;
+#' a panel notes the curve points beyond the axes. Single-database models are
+#' left out. Each figure is written as PDF and PNG. Requires ggplot2.
+#'
+#' @param calibrationCurveDirectory Output of [runCalibrationCurveExport()].
+#' @param outputDirectory Directory for the figures.
+#' @return The figure paths, invisibly.
+#' @export
+writeCalibrationFigures <- function(calibrationCurveDirectory, outputDirectory) {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("writeCalibrationFigures() needs the ggplot2 package", call. = FALSE)
+  }
+  curves <- utils::read.csv(file.path(calibrationCurveDirectory, "export", "calibrationCurves.csv"),
+    stringsAsFactors = FALSE)
+  curves <- curves[curves$method %in% c("PooledLasso", names(figureLabels$method)), , drop = FALSE]
+  dir.create(outputDirectory, recursive = TRUE, showWarnings = FALSE)
+  paths <- character()
+  groups <- unique(curves[c("task", "featureSet")])
+  for (i in seq_len(nrow(groups))) {
+    rows <- curves[curves$task == groups$task[[i]] & curves$featureSet == groups$featureSet[[i]], , drop = FALSE]
+    plot <- calibrationFigure(rows)
+    for (extension in c("pdf", "png")) {
+      path <- file.path(outputDirectory,
+        paste0("calibration_", groups$task[[i]], "_", groups$featureSet[[i]], ".", extension))
+      ggplot2::ggsave(path, plot, width = 10, height = 6.5, dpi = 300, bg = "white")
+      paths <- c(paths, path)
+    }
+  }
+  invisible(paths)
+}
+
+calibrationFigure <- function(rows) {
+  .data <- ggplot2::.data
+  labels <- c(PooledLasso = "Pooled lasso", figureLabels$method)
+  labels <- labels[names(labels) %in% rows$method]
+  rows$panel <- factor(labels[rows$method], levels = labels)
+  rows$database <- factor(rows$heldOutDatabase, levels = sort(unique(rows$heldOutDatabase)))
+  rows$series <- "Workflow"
+  # Pooled lasso is drawn in every panel as the reference.
+  pooled <- rows[rows$method == "PooledLasso", setdiff(names(rows), "panel"), drop = FALSE]
+  pooled <- merge(pooled, data.frame(panel = factor(labels, levels = labels)))
+  pooled$series <- "Pooled lasso"
+  rows$series[rows$method == "PooledLasso"] <- "Pooled lasso"
+  rows$fill <- rows$series
+  # Axes cover nearly all curve points; the rest are counted in their panel.
+  range <- stats::quantile(c(rows$predicted, rows$observed), c(0.005, 0.995), names = FALSE)
+  limits <- c(range[[1]] / 1.3, min(1, range[[2]] * 1.3))
+  outside <- rows$predicted < limits[[1]] | rows$predicted > limits[[2]] |
+    rows$observed < limits[[1]] | rows$observed > limits[[2]]
+  offScale <- stats::aggregate(list(points = outside), rows[c("panel", "database")], sum)
+  offScale <- offScale[offScale$points > 0, , drop = FALSE]
+  offScale$label <- sprintf("%d %s off scale", offScale$points, ifelse(offScale$points == 1, "point", "points"))
+  breaks <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
+  percent <- function(x) paste0(formatC(100 * x, format = "fg", digits = 2), "%")
+  ggplot2::ggplot(rows, ggplot2::aes(x = .data$predicted, y = .data$observed)) +
+    ggplot2::geom_abline(colour = figureInk[["muted"]], linewidth = 0.3, linetype = "22") +
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper, fill = .data$fill), alpha = 0.18) +
+    ggplot2::geom_line(data = pooled, ggplot2::aes(colour = .data$series), linewidth = 0.35) +
+    ggplot2::geom_line(ggplot2::aes(colour = .data$series), linewidth = 0.55) +
+    ggplot2::geom_text(data = offScale, ggplot2::aes(label = .data$label), x = -Inf, y = Inf,
+      hjust = -0.05, vjust = 1.4, size = 2.1, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
+    ggplot2::facet_grid(database ~ panel, switch = "y") +
+    ggplot2::scale_colour_manual(values = c(Workflow = figureTaskColors[[1]], `Pooled lasso` = figureInk[["primary"]]),
+      breaks = c("Workflow", "Pooled lasso")) +
+    ggplot2::scale_fill_manual(values = c(Workflow = figureTaskColors[[1]], `Pooled lasso` = figureInk[["muted"]]),
+      guide = "none") +
+    ggplot2::scale_x_log10(breaks = breaks, labels = percent) +
+    ggplot2::scale_y_log10(breaks = breaks, labels = percent) +
+    ggplot2::coord_cartesian(xlim = limits, ylim = limits, expand = FALSE) +
+    ggplot2::labs(x = "Predicted risk", y = "Observed risk (smoothed)",
+      title = paste0(figureLabels$task[[rows$task[[1]]]], ", ", tolower(figureLabels$featureSet[[rows$featureSet[[1]]]])),
+      caption = paste("Each curve spans the 1st to 99th percentile of predicted risk in the held-out database,",
+        "with its pointwise 95% interval. Dashed: ideal calibration. Logarithmic axes.")) +
+    figureTheme() +
+    ggplot2::theme(text = ggplot2::element_text(size = 7.5, colour = figureInk[["primary"]]),
+      strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 90),
+      strip.text.x = ggplot2::element_text(hjust = 0.5),
+      panel.border = ggplot2::element_rect(fill = NA, colour = figureInk[["grid"]]),
+      panel.grid.major.y = ggplot2::element_line(colour = figureInk[["grid"]], linewidth = 0.3),
+      panel.spacing = ggplot2::unit(4, "pt"),
+      axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
+      plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
+}
+
 localBaselineFigure <- function(local, evaluations) {
   .data <- ggplot2::.data
   local$task <- factor(figureLabels$task[local$task], levels = figureLabels$task)

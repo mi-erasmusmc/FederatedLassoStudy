@@ -94,9 +94,14 @@ runDualAvgThresholdPilot("data", sites, "results/tuningPilot", "results/threshol
 # After the final run: refit the DualAvg models with JMDC held out at their
 # tuned penalties with 50,000 rounds and compare with the 10,000-round fits.
 runDualAvgRoundsCheck("data", sites, "results/final", "results/roundsCheck", mirai = TRUE)
+# After the final run: compare each saved model's coefficients with pooled
+# lasso of the same fold. Reads saved models only, no site data.
+runCoefficientAgreement(Sys.glob("results/final/*"), "results/coefficientAgreement")
 ```
 
 Each writes an `export` directory of aggregate summaries for review.
+`runCoefficientAgreement()` also exports every compared model's coefficients
+by covariate id.
 
 ## Status
 

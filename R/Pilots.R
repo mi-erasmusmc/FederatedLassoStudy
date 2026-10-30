@@ -259,7 +259,11 @@ writeThresholdPilotExport <- function(outputDirectory, sites, task, featureSet, 
 
 # Shared-scale coefficients named by covariate id, intercept first.
 coefficientVector <- function(model) {
-  table <- model$models[[1]]$coefficients
+  componentCoefficients(model$models[[1]])
+}
+
+componentCoefficients <- function(component) {
+  table <- component$coefficients
   table <- table[order(table$matrixColumn), , drop = FALSE]
   stats::setNames(table$coefficientSharedScale, ifelse(table$isIntercept, "(Intercept)", table$covariateId))
 }

@@ -15,7 +15,7 @@ Imports:
     stats,
     utils
 Remotes:
-    mi-erasmusmc/FederatedLearning@4e807159ffa1aef7b3499e6882abdbafc0411ff9
+    mi-erasmusmc/FederatedLearning@4e5108d12625df2ef6740b3577fe515996819275
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

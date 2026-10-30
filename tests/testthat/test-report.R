@@ -60,3 +60,21 @@ test_that("the report rejects an evaluation present in two directories", {
   )
   expect_error(writeStudyReport(c("run1", "run2"), tempfile()), "more than one results directory")
 })
+
+test_that("the report figures are drawn from the report tables", {
+  skip_if_not_installed("ggplot2")
+  results <- fakeResults()
+  results$featureSet[results$fold == 2L] <- "ageSexConditions"
+  results <- results[!(results$method == "ODAL1" & results$fold == 2L), ]
+  local_mocked_bindings(
+    readComparisonResults = function(outputDirectory) results,
+    .package = "FederatedLearning"
+  )
+  out <- tempfile()
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+  writeStudyReport("run1", out)
+  paths <- writeStudyFigures(out)
+  expect_setequal(basename(paths), c("discrimination.pdf", "discrimination.png", "localBaselines.pdf",
+    "localBaselines.png"))
+  expect_true(all(file.size(paths) > 0))
+})

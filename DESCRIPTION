@@ -17,6 +17,7 @@ Imports:
 Remotes:
     mi-erasmusmc/FederatedLearning@4e5108d12625df2ef6740b3577fe515996819275
 Suggests:
+    ggplot2,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Encoding: UTF-8

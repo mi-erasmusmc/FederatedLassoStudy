@@ -110,11 +110,12 @@ alone, so it runs away from the data:
 writeStudyReport(Sys.glob("results/final/*"), "results/report",
   coefficientAgreementDirectory = "results/coefficientAgreement",
   roundsCheckDirectories = Sys.glob("results/roundsCheck/*"))
+writeStudyFigures("results/report")
 ```
 
 ## Status
 
-Pending from the final-run plan: a pinned `renv.lock` and report figures.
+Pending from the final-run plan: a pinned `renv.lock`.
 
 ## Installation
 

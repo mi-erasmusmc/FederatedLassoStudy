@@ -20,12 +20,14 @@ outputRoot <- "results/sensitivity"
 logDirectory <- file.path(outputRoot, "logs")
 dir.create(logDirectory, recursive = TRUE, showWarnings = FALSE)
 
-# The atrial fibrillation analysis runs one held-out database per process, as
-# DualAvg took 3-10 hours per fold on this task in the main analysis.
+# The atrial fibrillation analysis and ODAL2 with condition predictors run one
+# held-out database per process, as DualAvg took 3-10 hours per fold on this
+# task in the main analysis and an ODAL1 pilot with condition predictors 2.4.
 jobs <- c(
   lapply(sites[c(1, 4, 3, 2, 5)], function(holdout) {
     list("noAtrialFibrillation", "ageSexPhenotypesNoAtrialFibrillation", holdout)
   }),
+  lapply(sites[c(4, 1, 3, 2, 5)], function(holdout) list("odal2Conditions", "ageSexConditions", holdout)),
   list(list("leadSecondLargest", "ageSexPhenotypes", sites), list("leadSmallest", "ageSexPhenotypes", sites)),
   unlist(lapply(c("adapFromLocalModels", "pooledRowTuning", "equalWeights"), function(analysis) {
     lapply(c("ageSexConditions", "ageSexPhenotypes"), function(featureSet) list(analysis, featureSet, sites))

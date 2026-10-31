@@ -26,5 +26,7 @@ equal instead of sample-size weights.
 coefficient averaging instead of separate glmnet fits.
 \item \code{pooledRowTuning}: pooled lasso with its penalty selected by
 outcome-stratified three-fold CV over the pooled training rows.
+\item \code{odal2Conditions}: ODAL2 with condition predictors, which the main
+analysis fits only with phenotype predictors.
 }
 }

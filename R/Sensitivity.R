@@ -14,6 +14,8 @@
 #'   coefficient averaging instead of separate glmnet fits.
 #' - `pooledRowTuning`: pooled lasso with its penalty selected by
 #'   outcome-stratified three-fold CV over the pooled training rows.
+#' - `odal2Conditions`: ODAL2 with condition predictors, which the main
+#'   analysis fits only with phenotype predictors.
 #'
 #' @return A named list; each element holds `featureSets` (the predictor sets
 #'   it applies to) and the [runStudy()] arguments it sets.
@@ -31,7 +33,8 @@ studySensitivityAnalyses <- function() {
       localWeighting = "equalClient"),
     adapFromLocalModels = list(featureSets = both, methods = c("ADAP1", "ADAP2"),
       adapInitBackend = "localCyclops"),
-    pooledRowTuning = list(featureSets = both, methods = "PooledLasso", pooledTuning = "rows")
+    pooledRowTuning = list(featureSets = both, methods = "PooledLasso", pooledTuning = "rows"),
+    odal2Conditions = list(featureSets = "ageSexConditions", methods = "ODAL2")
   )
 }
 

@@ -45,12 +45,14 @@ test_that("each sensitivity analysis runs into its own result directory", {
   runSensitivityAnalysis("noAtrialFibrillation", "data", sites, holdouts = c("JMDC", "CCAE"))
   runSensitivityAnalysis("pooledRowTuning", "data", sites, featureSet = "ageSexConditions")
   runSensitivityAnalysis("leadSmallest", "data", sites)
+  runSensitivityAnalysis("odal2Conditions", "data", sites, holdouts = "JMDC")
 
   expect_identical(vapply(calls, `[[`, "", "outputDirectory"), c(
     "results/sensitivity/noAtrialFibrillation_ageSexPhenotypesNoAtrialFibrillation",
     "results/sensitivity/noAtrialFibrillation_ageSexPhenotypesNoAtrialFibrillation_JMDC_CCAE",
     "results/sensitivity/pooledRowTuning_ageSexConditions",
-    "results/sensitivity/leadSmallest_ageSexPhenotypes"))
+    "results/sensitivity/leadSmallest_ageSexPhenotypes",
+    "results/sensitivity/odal2Conditions_ageSexConditions_JMDC"))
   expect_identical(calls[[1]]$tasks, "BleedWarfarin")
   expect_identical(calls[[1]]$methods, studyMethods())
   expect_identical(calls[[2]]$holdouts, c("JMDC", "CCAE"))
@@ -58,6 +60,8 @@ test_that("each sensitivity analysis runs into its own result directory", {
   expect_identical(calls[[3]]$methods, "PooledLasso")
   expect_null(calls[[3]]$tasks)
   expect_identical(calls[[4]]$leadRank, 4L)
+  expect_identical(calls[[5]]$methods, "ODAL2")
+  expect_identical(calls[[5]]$featureSets, "ageSexConditions")
   expect_true(all(vapply(calls, `[[`, logical(1), "mirai")))
 
   expect_error(runSensitivityAnalysis("leadSmallest", "data", sites, featureSet = "ageSexConditions"), "applies to")

@@ -120,6 +120,8 @@ for (fs in c("ageSexPhenotypes", "ageSexConditions")) {
   runSensitivityAnalysis("adapFromLocalModels", "data", sites, featureSet = fs)
   runSensitivityAnalysis("pooledRowTuning", "data", sites, featureSet = fs)
 }
+# ODAL2 with condition predictors.
+runSensitivityAnalysis("odal2Conditions", "data", sites)
 ```
 
 `holdouts` splits an analysis over several R sessions, each with its own

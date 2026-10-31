@@ -123,7 +123,14 @@ for (fs in c("ageSexPhenotypes", "ageSexConditions")) {
 ```
 
 `holdouts` splits an analysis over several R sessions, each with its own
-directory.
+directory. The installed script `extras/RunSensitivity.R` runs all of them as
+background R processes, five at a time and longest first, then writes the
+coefficient and calibration exports and bundles the aggregate CSVs into
+`sensitivity.tar.gz`; sourcing it again resumes unfinished runs:
+
+```r
+source(system.file("extras", "RunSensitivity.R", package = "FederatedLassoStudy"))
+```
 `runCoefficientAgreement()` also exports every compared model's coefficients
 by covariate id.
 

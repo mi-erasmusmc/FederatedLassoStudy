@@ -9,7 +9,10 @@ studyMethodSettings(
   dualAvgEpsilon = 1e-10,
   dualAvgLambda = NULL,
   dualAvgRounds = 10000L,
-  adapInitBackend = "glmnet_sparse"
+  adapInitBackend = "glmnet_sparse",
+  leadRank = 1L,
+  localWeighting = "sampleSize",
+  pooledTuning = "databases"
 )
 }
 \arguments{
@@ -24,10 +27,23 @@ loss. 1e-10 as before until the threshold pilot decides.}
 check how far round-limited fits are from converged.}
 
 \item{adapInitBackend}{Local ADAP initializer: \code{"glmnet_sparse"} (the study
-default) or \code{"glmnet"}. \code{NULL} uses the framework default.}
+default), \code{"glmnet"}, or \code{"localCyclops"} to start from the local models
+of coefficient averaging. \code{NULL} uses the framework default.}
+
+\item{leadRank}{Lead site of ODAL and ADAP by training size within each
+outer fold: 1 (the default) is the largest, 4 the smallest of four.}
+
+\item{localWeighting}{Weights of the local models in coefficient averaging
+and the probability ensemble: \code{"sampleSize"} (the default) or
+\code{"equalClient"}.}
+
+\item{pooledTuning}{Pooled-lasso penalty selection: \code{"databases"} (the
+default, each training database held out in turn) or \code{"rows"}
+(outcome-stratified three-fold CV over the pooled training rows).}
 }
 \value{
-A list of \code{methodSettings} objects.
+A list of \code{methodSettings} objects. Settings at their defaults add
+no options, so main-analysis runs are unchanged.
 }
 \description{
 Penalty tuning uses the framework defaults agreed for the final run: pooled

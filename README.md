@@ -4,7 +4,7 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `4e5108d` (after release `v0.3.0`).
+framework, pinned to commit `df1927c` (after release `v0.3.0`).
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection
@@ -102,6 +102,28 @@ runCalibrationCurveExport(Sys.glob("results/final/*"), "results/calibrationCurve
 ```
 
 Each writes an `export` directory of aggregate summaries for review.
+
+Sensitivity analyses requested in review each change one aspect of the main
+analysis and run into their own directory under `results/sensitivity/`
+(`studySensitivityAnalyses()` lists them):
+
+```r
+# Bleeding after warfarin without the atrial fibrillation phenotype, all workflows.
+runSensitivityAnalysis("noAtrialFibrillation", "data", sites)
+# ODAL and ADAP with the second-largest or smallest training database as lead.
+runSensitivityAnalysis("leadSecondLargest", "data", sites)
+runSensitivityAnalysis("leadSmallest", "data", sites)
+# Equal-weight local combinations, ADAP from the local Cyclops models, and
+# pooled lasso tuned over pooled rows, for each predictor set.
+for (fs in c("ageSexPhenotypes", "ageSexConditions")) {
+  runSensitivityAnalysis("equalWeights", "data", sites, featureSet = fs)
+  runSensitivityAnalysis("adapFromLocalModels", "data", sites, featureSet = fs)
+  runSensitivityAnalysis("pooledRowTuning", "data", sites, featureSet = fs)
+}
+```
+
+`holdouts` splits an analysis over several R sessions, each with its own
+directory.
 `runCoefficientAgreement()` also exports every compared model's coefficients
 by covariate id.
 

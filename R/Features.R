@@ -7,6 +7,10 @@
 #'   The 14 antibiotic-family phenotypes (PhenotypeLibrary 1201-1214) are
 #'   replaced by one indicator for any antibiotic, their logical OR, with
 #'   covariate id 999001049.
+#' - `ageSexPhenotypesNoAtrialFibrillation`, a sensitivity analysis for
+#'   bleeding after warfarin, whose cohort requires atrial fibrillation: the
+#'   protocol's predictors without the atrial fibrillation phenotype
+#'   (PhenotypeLibrary 1160). It uses the phenotype extraction.
 #' - `ageSexConditions`, a wider candidate: age, the female indicator and
 #'   condition occurrence in the prior year (analysis 102).
 #' - `defaultCovariates`, the widest candidate: FeatureExtraction's default
@@ -22,8 +26,8 @@
 #' @return A named list of `featureSettings` objects.
 #' @export
 studyFeatureSettings <- function(featureSets = "ageSexPhenotypes") {
-  all <- list(
-    ageSexPhenotypes = FederatedLearning::createFeatureSettings(
+  phenotypes <- function(excludeCovariateIds = NULL) {
+    FederatedLearning::createFeatureSettings(
       covariateIds = c(ageCovariateId, femaleCovariateId),
       analysisIds = 49,
       minFraction = 0.001,
@@ -31,8 +35,13 @@ studyFeatureSettings <- function(featureSets = "ageSexPhenotypes") {
         covariateId = anyAntibioticCovariateId,
         name = "Any antibiotic",
         components = antibioticCovariateIds
-      ))
-    ),
+      )),
+      excludeCovariateIds = excludeCovariateIds
+    )
+  }
+  all <- list(
+    ageSexPhenotypes = phenotypes(),
+    ageSexPhenotypesNoAtrialFibrillation = phenotypes(atrialFibrillationCovariateId),
     ageSexConditions = FederatedLearning::createFeatureSettings(
       covariateIds = c(ageCovariateId, femaleCovariateId),
       analysisIds = 102,
@@ -55,6 +64,9 @@ femaleCovariateId <- 8532001
 
 # PhenotypeLibrary antibiotic-family phenotypes 1201-1214 as cohort covariates.
 antibioticCovariateIds <- (1201:1214) * 1000 + 49
+
+# PhenotypeLibrary 1160, atrial fibrillation, as a cohort covariate.
+atrialFibrillationCovariateId <- 1160049
 
 # Covariate id of the combined antibiotic indicator, outside PhenotypeLibrary's range.
 anyAntibioticCovariateId <- 999001049

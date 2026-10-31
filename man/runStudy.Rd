@@ -18,7 +18,10 @@ runStudy(
   taskDirectories = NULL,
   hosts = "localhost",
   mirai = FALSE,
-  adapInitBackend = "glmnet_sparse"
+  adapInitBackend = "glmnet_sparse",
+  leadRank = 1L,
+  localWeighting = "sampleSize",
+  pooledTuning = "databases"
 )
 }
 \arguments{
@@ -53,6 +56,9 @@ which makes DualAvg about five times slower at thousands of predictors.}
 
 \item{adapInitBackend}{Local ADAP initializer, passed to \code{\link[=studyMethodSettings]{studyMethodSettings()}}.
 Defaults to \code{"glmnet_sparse"}.}
+
+\item{leadRank, localWeighting, pooledTuning}{Sensitivity settings passed to
+\code{\link[=studyMethodSettings]{studyMethodSettings()}}; the defaults are those of the main analysis.}
 }
 \value{
 The results table, invisibly.

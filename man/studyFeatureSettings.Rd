@@ -21,6 +21,10 @@ PhenotypeLibrary phenotype covariates (analysis 49, days -365 through 0).
 The 14 antibiotic-family phenotypes (PhenotypeLibrary 1201-1214) are
 replaced by one indicator for any antibiotic, their logical OR, with
 covariate id 999001049.
+\item \code{ageSexPhenotypesNoAtrialFibrillation}, a sensitivity analysis for
+bleeding after warfarin, whose cohort requires atrial fibrillation: the
+protocol's predictors without the atrial fibrillation phenotype
+(PhenotypeLibrary 1160). It uses the phenotype extraction.
 \item \code{ageSexConditions}, a wider candidate: age, the female indicator and
 condition occurrence in the prior year (analysis 102).
 \item \code{defaultCovariates}, the widest candidate: FeatureExtraction's default

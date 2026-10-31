@@ -19,6 +19,8 @@
 #' @param dualAvgEpsilon,dualAvgLambda,dualAvgRounds Passed to [studyMethodSettings()].
 #' @param adapInitBackend Local ADAP initializer, passed to [studyMethodSettings()].
 #'   Defaults to `"glmnet_sparse"`.
+#' @param leadRank,localWeighting,pooledTuning Sensitivity settings passed to
+#'   [studyMethodSettings()]; the defaults are those of the main analysis.
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
 #'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
@@ -31,12 +33,14 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
                      holdouts = siteIds, methods = studyMethods(),
                      featureSets = "ageSexPhenotypes", dualAvgEpsilon = 1e-10,
                      dualAvgLambda = NULL, dualAvgRounds = 10000L, taskDirectories = NULL,
-                     hosts = "localhost", mirai = FALSE, adapInitBackend = "glmnet_sparse") {
+                     hosts = "localhost", mirai = FALSE, adapInitBackend = "glmnet_sparse",
+                     leadRank = 1L, localWeighting = "sampleSize", pooledTuning = "databases") {
   if (missing(methods) && "ageSexConditions" %in% featureSets) {
     methods <- setdiff(studyMethods(), c("ODAL1", "ODAL2"))
   }
   sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
-  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds, adapInitBackend)
+  methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds, adapInitBackend,
+    leadRank, localWeighting, pooledTuning)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(
@@ -71,5 +75,6 @@ studySites <- function(dataRoot, siteIds, tasks, featureSets, taskDirectories = 
 }
 
 # Task directory suffix of each predictor specification's extraction.
-extractionSuffixes <- c(ageSexPhenotypes = "", ageSexConditions = "AgeSexConditions",
+extractionSuffixes <- c(ageSexPhenotypes = "", ageSexPhenotypesNoAtrialFibrillation = "",
+  ageSexConditions = "AgeSexConditions",
   defaultCovariates = "Default")

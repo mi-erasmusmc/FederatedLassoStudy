@@ -136,6 +136,17 @@ source(system.file("extras", "RunSensitivity.R", package = "FederatedLassoStudy"
 `runCoefficientAgreement()` also exports every compared model's coefficients
 by covariate id.
 
+`runProductionChecks()` scores the saved models on the site data without
+refitting: DeLong 95% intervals for each AUC and its difference from pooled
+lasso, agreement of the predictions with pooled lasso, the atrial fibrillation
+phenotype's prevalence and constant predictors per database, and a replay of
+the local fits with which ODAL starts. The installed script runs it on the
+main and sensitivity results and bundles the tables into `checks.tar.gz`:
+
+```r
+source(system.file("extras", "RunChecks.R", package = "FederatedLassoStudy"))
+```
+
 `writeStudyReport()` builds the manuscript tables from these exported CSVs
 alone, so it runs away from the data:
 

@@ -13,6 +13,16 @@
 # numbers the folds.
 
 library(FederatedLassoStudy)
+local({
+  pin <- sub(".*@", "", trimws(utils::packageDescription("FederatedLassoStudy")$Remotes))
+  installed <- utils::packageDescription("FederatedLearning")$RemoteSha
+  if (is.null(installed) || !identical(substr(installed, 1, 7), substr(pin, 1, 7))) {
+    stop("FederatedLearning ", if (is.null(installed)) "was not installed from GitHub" else
+      paste("is at", substr(installed, 1, 7)), "; this study needs ", substr(pin, 1, 7), ". Run: ",
+      "remotes::install_github(\"mi-erasmusmc/FederatedLearning@", substr(pin, 1, 7), "\", upgrade = \"never\")",
+      call. = FALSE)
+  }
+})
 if (!exists("sites", inherits = FALSE)) sites <- c("MDCD", "MDCR", "CCAE", "JMDC", "OPTUMEHR")
 if (!exists("dataRoot", inherits = FALSE)) dataRoot <- "data"
 if (!exists("workers", inherits = FALSE)) workers <- 5L

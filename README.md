@@ -147,6 +147,20 @@ main and sensitivity results and bundles the tables into `checks.tar.gz`:
 source(system.file("extras", "RunChecks.R", package = "FederatedLassoStudy"))
 ```
 
+`runPseudoSiteAnalysis()` splits each training database at random into
+pseudo-sites with about 100, 30 or 10 outcomes each, fits a local lasso at
+every pseudo-site, and compares their coefficient average and probability
+ensemble with pooled lasso. It also fits pooled lasso with database
+indicators, which estimates predictor effects within databases only:
+
+```r
+source(system.file("extras", "RunPseudoSites.R", package = "FederatedLassoStudy"))
+```
+
+`extras/ExploreSiteFields.R` counts, for each database's study cohorts, the
+fields that could split it into natural sites (regions, care sites,
+providers, insurers), reading the databases only.
+
 `writeStudyReport()` builds the manuscript tables from these exported CSVs
 alone, so it runs away from the data:
 

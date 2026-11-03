@@ -55,7 +55,9 @@ the model also places there, and the share of outcomes in its own top
 For \code{targetFeatureSets}, a \code{TargetLasso} row adds a lasso fitted inside
 the held-out database by five outcome-stratified folds, each tuned as a
 local lasso, and scored on its out-of-fold predictions: the performance a
-model developed in that database itself could reach.
+model developed in that database itself could reach. If its penalty
+search fails in any fold, as a local lasso's can, the row keeps the
+failure in \code{error} and its measures are missing.
 }
 \item \code{covariatePrevalence}: for each task and database, the share of the
 evaluated population with each of \code{prevalenceCovariateIds}, with counts
@@ -65,7 +67,8 @@ constant within a database's population (absent from everyone or present
 in everyone).
 \item \code{odalInitialization}: the local unpenalized logistic fit that starts ODAL,
 replayed at every training database of each phenotype-predictor ODAL
-model as the fit ran it, recording whether it fell back to ridge and why.
+model as the fit ran it, recording whether it fell back to ridge and why,
+or the error that stopped it.
 }
 }
 \details{

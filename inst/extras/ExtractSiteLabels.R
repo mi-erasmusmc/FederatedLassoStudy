@@ -40,10 +40,10 @@ for (name in names(fields)) {
   if (is.null(dataSource)) stop("No data source named ", name, " in ", dataSourcesFile, call. = FALSE)
   connection <- DatabaseConnector::connect(helpers$makeConnectionDetails(dataSource, config$connectionProfiles))
   for (cohort in names(cohortIds)) {
-    labels <- DatabaseConnector::renderTranslateQuerySql(connection,
-      "WITH cohort AS (SELECT subject_id AS person_id, cohort_start_date FROM @cohort_schema.@cohort_table
-        WHERE cohort_definition_id = @cohort_id) @labelled;",
-      labelled = labelSql[[fields[[name]]]], cdm = dataSource$cdmDatabaseSchema,
+    # The label query goes in as text, so that SqlRender sees every parameter in one template.
+    sql <- paste("WITH cohort AS (SELECT subject_id AS person_id, cohort_start_date FROM @cohort_schema.@cohort_table
+        WHERE cohort_definition_id = @cohort_id)", labelSql[[fields[[name]]]], ";")
+    labels <- DatabaseConnector::renderTranslateQuerySql(connection, sql, cdm = dataSource$cdmDatabaseSchema,
       cohort_schema = dataSource$cohortDatabaseSchema, cohort_table = dataSource$cohortTable,
       cohort_id = cohortIds[[cohort]], tempEmulationSchema = dataSource$tempEmulationSchema,
       snakeCaseToCamelCase = TRUE)

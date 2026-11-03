@@ -54,14 +54,14 @@ labelSql <- list(
     GROUP BY c.person_id, c.cohort_start_date")
 
 summarise <- function(connection, dataSource, cohortId, field) {
-  cohort <- "WITH cohort AS (SELECT subject_id AS person_id, cohort_start_date FROM @cohort_schema.@cohort_table
-    WHERE cohort_definition_id = @cohort_id), labelled AS (@labelled)"
+  # The label query goes in as text, so that SqlRender sees every parameter in one template.
+  cohort <- paste("WITH cohort AS (SELECT subject_id AS person_id, cohort_start_date FROM @cohort_schema.@cohort_table
+    WHERE cohort_definition_id = @cohort_id), labelled AS (", labelSql[[field]], ")")
   sql <- paste(cohort, "SELECT label_n FROM (SELECT label, COUNT(*) AS label_n FROM labelled
     WHERE label IS NOT NULL GROUP BY label) t")
   totalSql <- paste(cohort, "SELECT COUNT(*) AS entries FROM labelled")
   run <- function(query) {
-    DatabaseConnector::renderTranslateQuerySql(connection, query, labelled = labelSql[[field]],
-      cdm = dataSource$cdmDatabaseSchema, cohort_schema = dataSource$cohortDatabaseSchema,
+    DatabaseConnector::renderTranslateQuerySql(connection, query, cdm = dataSource$cdmDatabaseSchema, cohort_schema = dataSource$cohortDatabaseSchema,
       cohort_table = dataSource$cohortTable, cohort_id = cohortId, tempEmulationSchema = dataSource$tempEmulationSchema,
       snakeCaseToCamelCase = TRUE)
   }

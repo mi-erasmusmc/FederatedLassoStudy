@@ -59,6 +59,8 @@ runPseudoSiteAnalysis <- function(dataRoot, siteIds, mainDirectories, outputDire
   cluster <- if (cores > 1L) parallel::makePSOCKcluster(cores) else NULL
   if (!is.null(cluster)) {
     on.exit(parallel::stopCluster(cluster), add = TRUE)
+    # Workers use this session's libraries, so they load the same package versions.
+    parallel::clusterCall(cluster, function(paths) .libPaths(paths), .libPaths())
     parallel::clusterEvalQ(cluster, loadNamespace("FederatedLassoStudy"))
   }
   results <- list()

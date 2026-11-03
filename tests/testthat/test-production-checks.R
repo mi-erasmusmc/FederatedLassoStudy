@@ -52,3 +52,24 @@ test_that("site labels are matched to the population by subject and index date",
   population$cohortStartDate <- population$cohortStartDate + 1
   expect_error(siteLabels(directory, population, "CCAE"), "have a site label")
 })
+
+test_that("a failed TargetLasso fit is recorded without stopping the scoring", {
+  set.seed(1)
+  y <- rep(c(0, 1), c(40, 10))
+  models <- data.frame(directory = "results/final/x", task = "t", heldOutDatabase = "A", featureSet = "ageSexPhenotypes",
+    fold = 1L, method = c("PooledLasso", "LocalAvgLasso"), stringsAsFactors = FALSE)
+  local_mocked_bindings(loadModel = function(directory, task, heldOut, featureSet, method) list(method = method),
+    .package = "FederatedLearning")
+  local_mocked_bindings(
+    modelPredictions = function(model, data) {
+      eta <- stats::rnorm(length(y)) + y
+      list(outcome = y, probability = stats::plogis(eta), linearPredictor = eta)
+    },
+    targetLassoPredictions = function(pooled, data, fold) stop("Lapack routine dgesv: system is exactly singular"))
+  rows <- scoreHeldOutModels(models, list(get = function(model) NULL), "ageSexPhenotypes")
+  expect_equal(rows$method, c("PooledLasso", "LocalAvgLasso", "TargetLasso"))
+  expect_true(all(!is.na(rows$auc[1:2])) && is.na(rows$auc[3]))
+  expect_equal(rows$outcomes[3], 10)
+  expect_match(rows$error[3], "singular")
+  expect_true(all(is.na(rows$error[1:2])))
+})

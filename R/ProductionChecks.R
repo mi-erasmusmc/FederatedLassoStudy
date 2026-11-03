@@ -19,7 +19,9 @@
 #'   For `targetFeatureSets`, a `TargetLasso` row adds a lasso fitted inside
 #'   the held-out database by five outcome-stratified folds, each tuned as a
 #'   local lasso, and scored on its out-of-fold predictions: the performance a
-#'   model developed in that database itself could reach.
+#'   model developed in that database itself could reach. If its penalty
+#'   search fails in any fold, as a local lasso's can, the row keeps the
+#'   failure in `error` and its measures are missing.
 #' - `covariatePrevalence`: for each task and database, the share of the
 #'   evaluated population with each of `prevalenceCovariateIds`, with counts
 #'   below `minCellCount` (of patients with or without it) suppressed.
@@ -28,7 +30,8 @@
 #'   in everyone).
 #' - `odalInitialization`: the local unpenalized logistic fit that starts ODAL,
 #'   replayed at every training database of each phenotype-predictor ODAL
-#'   model as the fit ran it, recording whether it fell back to ridge and why.
+#'   model as the fit ran it, recording whether it fell back to ridge and why,
+#'   or the error that stopped it.
 #'
 #' Local site models are not scored. Only aggregate tables are written, to the
 #' `export` directory; patient-level predictions stay in memory.
@@ -137,17 +140,23 @@ scoreHeldOutModels <- function(models, matrices, targetFeatureSets = character()
   do.call(rbind, lapply(groups, function(index) {
     group <- scored[index]
     pooled <- which(vapply(group, function(s) s$row$method == "PooledLasso", logical(1)))[1]
+    targetError <- NULL
     if (!is.na(pooled) && group[[pooled]]$row$featureSet %in% targetFeatureSets) {
       row <- group[[pooled]]$row
       row$method <- "TargetLasso"
-      group[[length(group) + 1L]] <- c(list(row = row), group[[pooled]]$target())
+      target <- tryCatch(group[[pooled]]$target(), error = function(e) conditionMessage(e))
+      if (is.character(target)) {
+        targetError <- list(row = row, error = target)
+      } else {
+        group[[length(group) + 1L]] <- c(list(row = row), target)
+      }
     }
     reference <- which(vapply(group, function(s) s$row$method == "PooledLasso", logical(1)))[1]
     y <- group[[1]]$outcome
     # Probabilities, as the framework's AUC ranks them.
     delong <- delongAuc(y, do.call(cbind, lapply(group, `[[`, "probability")))
     z <- stats::qnorm(0.975)
-    do.call(rbind, lapply(seq_along(group), function(k) {
+    rows <- do.call(rbind, lapply(seq_along(group), function(k) {
       row <- group[[k]]$row
       se <- sqrt(delong$covariance[k, k])
       out <- data.frame(resultsDirectory = basename(row$directory), task = row$task, featureSet = row$featureSet,
@@ -159,7 +168,7 @@ scoreHeldOutModels <- function(models, matrices, targetFeatureSets = character()
         top10OutcomeShare = sum(y[topRisk(group[[k]]$probability, 0.1)]) / sum(y),
         linearPredictorPearson = NA_real_, linearPredictorSpearman = NA_real_,
         probabilityMeanAbsDifference = NA_real_, probabilityP99AbsDifference = NA_real_,
-        top10Overlap = NA_real_, top1Overlap = NA_real_, stringsAsFactors = FALSE)
+        top10Overlap = NA_real_, top1Overlap = NA_real_, error = NA_character_, stringsAsFactors = FALSE)
       if (!is.na(reference)) {
         r <- group[[reference]]
         differenceSe <- sqrt(max(delong$covariance[k, k] + delong$covariance[reference, reference] -
@@ -185,6 +194,16 @@ scoreHeldOutModels <- function(models, matrices, targetFeatureSets = character()
       }
       out
     }))
+    if (!is.null(targetError)) {
+      failed <- rows[1, ]
+      failed[] <- NA
+      failed[, c("resultsDirectory", "task", "featureSet", "fold", "heldOutDatabase", "method", "n", "outcomes",
+        "error")] <- list(basename(targetError$row$directory), targetError$row$task, targetError$row$featureSet,
+        targetError$row$fold, targetError$row$heldOutDatabase, "TargetLasso", length(y), sum(y),
+        substr(targetError$error, 1, 300))
+      rows <- rbind(rows, failed)
+    }
+    rows
   }))
 }
 
@@ -295,9 +314,12 @@ replayOdalInitialization <- function(odalModel, matrices, site) {
   data <- matrices$get(model)
   framework <- asNamespace("FederatedLearning")
   xRaw <- framework$.stripInterceptColumn(data$xMatrix, config)
-  init <- framework$.fitLocalLogisticDiagnosed(xRaw = xRaw, xDesign = framework$.addInterceptColumn(xRaw),
-    y = data$yLabels, config = config,
-    allowRidgeFallback = identical(framework$.odalInitMode(config), "ridgeFallback"))
+  # glm's warnings are recorded in the diagnostics, so they need not reach the console.
+  init <- tryCatch(suppressWarnings(framework$.fitLocalLogisticDiagnosed(xRaw = xRaw,
+    xDesign = framework$.addInterceptColumn(xRaw), y = data$yLabels, config = config,
+    allowRidgeFallback = identical(framework$.odalInitMode(config), "ridgeFallback"))),
+    error = function(e) list(beta = NA_real_, diagnostics = list(initMethod = NA_character_,
+      fallbackReason = paste("Error:", conditionMessage(e)), glmWarnings = NA_character_)))
   d <- init$diagnostics
   text <- function(x) {
     x <- x[!is.na(x) & nzchar(x)]

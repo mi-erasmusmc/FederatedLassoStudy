@@ -46,7 +46,7 @@ studySensitivityAnalyses <- function() {
 #' directory; rerunning the same call resumes it.
 #'
 #' @param analysis Name of a [studySensitivityAnalyses()] entry.
-#' @param dataRoot,siteIds,taskDirectories,hosts,mirai As for [runStudy()].
+#' @param dataRoot,siteIds,taskDirectories,hosts,mirai,rerunErrors As for [runStudy()].
 #' @param featureSet Predictor set; defaults to the analysis's first.
 #' @param holdouts Databases to hold out; all by default.
 #' @param outputRoot Directory under which the result directory is created.
@@ -54,7 +54,7 @@ studySensitivityAnalyses <- function() {
 #' @export
 runSensitivityAnalysis <- function(analysis, dataRoot, siteIds, featureSet = NULL, holdouts = siteIds,
                                    outputRoot = "results/sensitivity", taskDirectories = NULL,
-                                   hosts = "localhost", mirai = TRUE) {
+                                   hosts = "localhost", mirai = TRUE, rerunErrors = FALSE) {
   analyses <- studySensitivityAnalyses()
   if (length(analysis) != 1L || !analysis %in% names(analyses)) {
     stop("analysis must name one of: ", paste(names(analyses), collapse = ", "), call. = FALSE)
@@ -72,6 +72,6 @@ runSensitivityAnalysis <- function(analysis, dataRoot, siteIds, featureSet = NUL
   arguments <- c(settings[setdiff(names(settings), "featureSets")],
     list(dataRoot = dataRoot, siteIds = siteIds, outputDirectory = file.path(outputRoot, name),
       featureSets = featureSet, holdouts = holdouts, taskDirectories = taskDirectories,
-      hosts = hosts, mirai = mirai))
+      hosts = hosts, mirai = mirai, rerunErrors = rerunErrors))
   do.call(runStudy, arguments)
 }

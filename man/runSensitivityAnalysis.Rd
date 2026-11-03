@@ -13,13 +13,14 @@ runSensitivityAnalysis(
   outputRoot = "results/sensitivity",
   taskDirectories = NULL,
   hosts = "localhost",
-  mirai = TRUE
+  mirai = TRUE,
+  rerunErrors = FALSE
 )
 }
 \arguments{
 \item{analysis}{Name of a \code{\link[=studySensitivityAnalyses]{studySensitivityAnalyses()}} entry.}
 
-\item{dataRoot, siteIds, taskDirectories, hosts, mirai}{As for \code{\link[=runStudy]{runStudy()}}.}
+\item{dataRoot, siteIds, taskDirectories, hosts, mirai, rerunErrors}{As for \code{\link[=runStudy]{runStudy()}}.}
 
 \item{featureSet}{Predictor set; defaults to the analysis's first.}
 

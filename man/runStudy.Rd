@@ -21,7 +21,8 @@ runStudy(
   adapInitBackend = "glmnet_sparse",
   leadRank = 1L,
   localWeighting = "sampleSize",
-  pooledTuning = "databases"
+  pooledTuning = "databases",
+  rerunErrors = FALSE
 )
 }
 \arguments{
@@ -59,6 +60,9 @@ Defaults to \code{"glmnet_sparse"}.}
 
 \item{leadRank, localWeighting, pooledTuning}{Sensitivity settings passed to
 \code{\link[=studyMethodSettings]{studyMethodSettings()}}; the defaults are those of the main analysis.}
+
+\item{rerunErrors}{Refit combinations whose earlier fit ended in an error;
+otherwise a resumed run keeps them as they are.}
 }
 \value{
 The results table, invisibly.

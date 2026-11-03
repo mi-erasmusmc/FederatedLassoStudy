@@ -24,6 +24,8 @@
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
 #'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
+#' @param rerunErrors Refit combinations whose earlier fit ended in an error;
+#'   otherwise a resumed run keeps them as they are.
 #' @param mirai Use mirai workers instead of socket (PSOCK) workers. Results are
 #'   the same; socket workers stall on each message of a few kilobytes or more,
 #'   which makes DualAvg about five times slower at thousands of predictors.
@@ -34,7 +36,8 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
                      featureSets = "ageSexPhenotypes", dualAvgEpsilon = 1e-10,
                      dualAvgLambda = NULL, dualAvgRounds = 10000L, taskDirectories = NULL,
                      hosts = "localhost", mirai = FALSE, adapInitBackend = "glmnet_sparse",
-                     leadRank = 1L, localWeighting = "sampleSize", pooledTuning = "databases") {
+                     leadRank = 1L, localWeighting = "sampleSize", pooledTuning = "databases",
+                     rerunErrors = FALSE) {
   if (missing(methods) && "ageSexConditions" %in% featureSets) {
     methods <- setdiff(studyMethods(), c("ODAL1", "ODAL2"))
   }
@@ -50,7 +53,7 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
       methodSettings = methodSettings,
       outputDirectory = outputDirectory,
       holdouts = holdouts,
-      runSettings = FederatedLearning::createRunSettings(hosts = hosts, mirai = mirai)
+      runSettings = FederatedLearning::createRunSettings(hosts = hosts, mirai = mirai, rerunErrors = rerunErrors)
     )
   }
   invisible(FederatedLearning::readComparisonResults(outputDirectory))

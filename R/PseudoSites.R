@@ -19,6 +19,14 @@
 #'   within databases only. Its intercept for a new database is the
 #'   sample-size-weighted mean of the database intercepts.
 #'
+#' With `siteLabelDirectory`, two further splits use natural sites: `natural`
+#' splits each training database by the labels that
+#' `extras/ExtractSiteLabels.R` wrote (entries without a label form one
+#' `unknown` site; a database without a label file stays whole), and
+#' `naturalSizeMatched` keeps the same site sizes but assigns entries to them
+#' at random. Their difference isolates what real differences between sites
+#' add to sample size.
+#'
 #' The `export` directory holds `pseudoSites.csv` (one row per task, held-out
 #' database, split and model: AUC with DeLong difference from pooled lasso,
 #' model-based AUC, log loss, calibration-in-the-large and slope, agreement of
@@ -36,6 +44,8 @@
 #' @param holdouts Held-out databases to run.
 #' @param cores Parallel R processes for the local fits.
 #' @param seed Seed for the splits.
+#' @param siteLabelDirectory Directory of natural-site label files,
+#'   `<target cohort id>/<database>.csv`; `NULL` for random splits only.
 #' @return The export tables, invisibly. The `check` column holds, for the
 #'   whole-database coefficient average, its largest absolute coefficient
 #'   difference from the main analysis's, and for the database-indicator model,
@@ -45,7 +55,7 @@
 runPseudoSiteAnalysis <- function(dataRoot, siteIds, mainDirectories, outputDirectory,
                                   outcomesPerSite = c(100, 30, 10), tasks = names(studyTasks()),
                                   featureSet = "ageSexPhenotypes", holdouts = siteIds, cores = 4L, seed = 42L,
-                                  taskDirectories = NULL) {
+                                  taskDirectories = NULL, siteLabelDirectory = NULL) {
   cluster <- if (cores > 1L) parallel::makePSOCKcluster(cores) else NULL
   if (!is.null(cluster)) {
     on.exit(parallel::stopCluster(cluster), add = TRUE)
@@ -65,7 +75,8 @@ runPseudoSiteAnalysis <- function(dataRoot, siteIds, mainDirectories, outputDire
       load <- function(site) {
         plpData <- FederatedLearning::loadClientData(sites[[site]], studyTasks()[[task]]$populationSettings)
         data <- FederatedLearning::createClientMatrix(plpData, pooled$config)
-        list(xMatrix = data$xMatrix, yLabels = data$yLabels, n = length(data$yLabels))
+        list(xMatrix = data$xMatrix, yLabels = data$yLabels, n = length(data$yLabels),
+          labels = if (!is.null(siteLabelDirectory)) siteLabels(siteLabelDirectory, plpData$population, site))
       }
       test <- load(holdout)
       train <- stats::setNames(lapply(training, load), training)
@@ -78,6 +89,14 @@ runPseudoSiteAnalysis <- function(dataRoot, siteIds, mainDirectories, outputDire
           set.seed(seed + 1000L * fold + i)
           sample(rep_len(seq_len(sites), length(y)))
         })), paste0("outcomes", outcomesPerSite)))
+      if (!is.null(siteLabelDirectory)) {
+        natural <- lapply(train, function(t) if (is.null(t$labels)) rep(1L, t$n) else t$labels)
+        splits$natural <- natural
+        splits$naturalSizeMatched <- lapply(seq_along(natural), function(i) {
+          set.seed(seed + 1000L * fold + i)
+          sample(natural[[i]])
+        })
+      }
       for (split in names(splits)) {
         local <- fitPseudoSites(train, splits[[split]], pooled$args, fold, cluster)
         counts[[length(counts) + 1L]] <- cbind(task = task, heldOutDatabase = holdout, split = split, local$counts)
@@ -104,6 +123,23 @@ runPseudoSiteAnalysis <- function(dataRoot, siteIds, mainDirectories, outputDire
   tables <- list(pseudoSites = do.call(rbind, results), pseudoSiteCounts = do.call(rbind, counts))
   writeExport(outputDirectory, tables)
   invisible(tables)
+}
+
+# Natural-site labels of a database's evaluated population, as integers in population order;
+# NULL when the database has no label file. Entries without a label form one site.
+siteLabels <- function(directory, population, database) {
+  file <- file.path(directory, unique(population$targetId), paste0(database, ".csv"))
+  if (length(file) != 1L || !file.exists(file)) return(NULL)
+  labels <- utils::read.csv(file, colClasses = "character")
+  key <- paste(format(population$subjectId, scientific = FALSE, trim = TRUE), format(population$cohortStartDate))
+  matched <- match(key, paste(labels$subjectId, labels$cohortStartDate))
+  if (mean(!is.na(matched)) < 0.95) {
+    stop("Only ", round(100 * mean(!is.na(matched))), "% of ", database, " entries have a site label in ", file,
+      call. = FALSE)
+  }
+  label <- labels$label[matched]
+  label[is.na(label) | !nzchar(label)] <- "unknown"
+  as.integer(factor(label))
 }
 
 # The main-analysis result directory holding pooled lasso for this task, predictor set and holdout.

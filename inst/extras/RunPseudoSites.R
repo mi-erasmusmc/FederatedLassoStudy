@@ -6,16 +6,24 @@
 #   source(system.file("extras", "RunPseudoSites.R", package = "FederatedLassoStudy"))
 #
 # It fits local lasso models at each pseudo-site, on `cores` processes, and
-# writes results/pseudoSites/export and pseudoSites.tar.gz. Set `sites`,
-# `dataRoot` or `cores` before sourcing to change them.
+# writes results/pseudoSites/export and pseudoSites.tar.gz. When
+# private/siteLabels holds the files of ExtractSiteLabels.R, it also runs the
+# natural-site splits. Set `sites`, `dataRoot`, `cores` or `siteLabelDirectory`
+# before sourcing to change them.
 
 library(FederatedLassoStudy)
 if (!exists("sites", inherits = FALSE)) sites <- c("MDCD", "MDCR", "CCAE", "JMDC", "OPTUMEHR")
 if (!exists("dataRoot", inherits = FALSE)) dataRoot <- "data"
 if (!exists("cores", inherits = FALSE)) cores <- 4L
+if (!exists("siteLabelDirectory", inherits = FALSE)) siteLabelDirectory <- "private/siteLabels"
+if (!dir.exists(siteLabelDirectory)) {
+  message("No site labels in ", siteLabelDirectory, "; running random splits only.")
+  siteLabelDirectory <- NULL
+}
 
 started <- Sys.time()
-tables <- runPseudoSiteAnalysis(dataRoot, sites, Sys.glob("results/final/*"), "results/pseudoSites", cores = cores)
+tables <- runPseudoSiteAnalysis(dataRoot, sites, Sys.glob("results/final/*"), "results/pseudoSites", cores = cores,
+  siteLabelDirectory = siteLabelDirectory)
 bundle <- Sys.glob("results/pseudoSites/export/*.csv")
 utils::tar("pseudoSites.tar.gz", files = bundle, compression = "gzip", tar = "internal")
 checks <- tables$pseudoSites$check

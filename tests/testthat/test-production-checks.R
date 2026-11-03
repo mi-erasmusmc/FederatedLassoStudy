@@ -38,3 +38,17 @@ test_that("top-risk sets have the requested size and break ties by position", {
   expect_identical(topRisk(c(0.1, 0.9, 0.5, 0.9), 0.5), c(2L, 4L))
   expect_identical(topRisk(c(0.1, 0.2), 0.01), 2L)
 })
+
+test_that("site labels are matched to the population by subject and index date", {
+  directory <- tempfile()
+  dir.create(file.path(directory, "13524"), recursive = TRUE)
+  write.csv(data.frame(subjectId = c("20000000001", "20000000002", "20000000003"),
+    cohortStartDate = c("2010-01-01", "2011-01-01", "2012-01-01"), label = c("TX", NA, "TX")),
+    file.path(directory, "13524", "CCAE.csv"), row.names = FALSE)
+  population <- data.frame(subjectId = c(20000000003, 20000000002, 20000000001), targetId = 13524,
+    cohortStartDate = as.Date(c("2012-01-01", "2011-01-01", "2010-01-01")))
+  expect_identical(siteLabels(directory, population, "CCAE"), c(1L, 2L, 1L))
+  expect_null(siteLabels(directory, population, "MDCD"))
+  population$cohortStartDate <- population$cohortStartDate + 1
+  expect_error(siteLabels(directory, population, "CCAE"), "have a site label")
+})

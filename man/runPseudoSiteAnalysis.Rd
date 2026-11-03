@@ -15,7 +15,8 @@ runPseudoSiteAnalysis(
   holdouts = siteIds,
   cores = 4L,
   seed = 42L,
-  taskDirectories = NULL
+  taskDirectories = NULL,
+  siteLabelDirectory = NULL
 )
 }
 \arguments{
@@ -38,6 +39,9 @@ holding each task's \code{featureSet} models is used.}
 \item{cores}{Parallel R processes for the local fits.}
 
 \item{seed}{Seed for the splits.}
+
+\item{siteLabelDirectory}{Directory of natural-site label files,
+\verb{<target cohort id>/<database>.csv}; \code{NULL} for random splits only.}
 }
 \value{
 The export tables, invisibly. The \code{check} column holds, for the
@@ -68,6 +72,14 @@ pooled lasso's selected penalty, which estimates the predictor effects
 within databases only. Its intercept for a new database is the
 sample-size-weighted mean of the database intercepts.
 }
+
+With \code{siteLabelDirectory}, two further splits use natural sites: \code{natural}
+splits each training database by the labels that
+\code{extras/ExtractSiteLabels.R} wrote (entries without a label form one
+\code{unknown} site; a database without a label file stays whole), and
+\code{naturalSizeMatched} keeps the same site sizes but assigns entries to them
+at random. Their difference isolates what real differences between sites
+add to sample size.
 
 The \code{export} directory holds \code{pseudoSites.csv} (one row per task, held-out
 database, split and model: AUC with DeLong difference from pooled lasso,

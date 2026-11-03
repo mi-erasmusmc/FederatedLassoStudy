@@ -6,9 +6,20 @@
 #'   paired DeLong difference from pooled lasso on the same patients. The
 #'   reference is the pooled lasso of the same task, predictor set and fold in
 #'   the first directory that has one, so list the main analysis first. The
-#'   table also holds the agreement of each model's linear predictor with
-#'   pooled lasso's (Pearson and Spearman correlation) and the mean and 99th
-#'   percentile absolute difference in predicted risk.
+#'   table also holds:
+#'   - the model-based AUC (van Klaveren et al., 2016): the AUC expected in
+#'     the held-out population if the model's own risks were correct, which
+#'     reflects case mix alone;
+#'   - the agreement of each model's linear predictor with pooled lasso's
+#'     (Pearson and Spearman correlation) and the mean and 99th percentile
+#'     absolute difference in predicted risk;
+#'   - the share of pooled lasso's top 10% and top 1% of predicted risk that
+#'     the model also places there, and the share of outcomes in its own top
+#'     10%.
+#'   For `targetFeatureSets`, a `TargetLasso` row adds a lasso fitted inside
+#'   the held-out database by five outcome-stratified folds, each tuned as a
+#'   local lasso, and scored on its out-of-fold predictions: the performance a
+#'   model developed in that database itself could reach.
 #' - `covariatePrevalence`: for each task and database, the share of the
 #'   evaluated population with each of `prevalenceCovariateIds`, with counts
 #'   below `minCellCount` (of patients with or without it) suppressed.
@@ -28,11 +39,14 @@
 #' @param outputDirectory Directory for the `export` tables.
 #' @param prevalenceCovariateIds Covariates whose prevalence is reported.
 #' @param minCellCount Smallest count reported.
+#' @param targetFeatureSets Predictor sets for which the `TargetLasso`
+#'   reference is fitted.
 #' @return The export tables, invisibly.
 #' @export
 runProductionChecks <- function(resultsDirectories, dataRoot, siteIds, outputDirectory,
                                 prevalenceCovariateIds = atrialFibrillationCovariateId, taskDirectories = NULL,
-                                minCellCount = 5L) {
+                                minCellCount = 5L,
+                                targetFeatureSets = c("ageSexPhenotypes", "ageSexConditions")) {
   models <- scoredModels(resultsDirectories)
   models$extraction <- unname(extractionSuffixes[models$featureSet])
   odal <- models[models$method %in% c("ODAL1", "ODAL2") & models$extraction == "", , drop = FALSE]
@@ -50,7 +64,7 @@ runProductionChecks <- function(resultsDirectories, dataRoot, siteIds, outputDir
       matrices <- siteMatrices(plpData)
       heldOut <- models[models$task == task & models$extraction == extraction & models$heldOutDatabase == site, ,
         drop = FALSE]
-      if (nrow(heldOut)) add("auc", scoreHeldOutModels(heldOut, matrices))
+      if (nrow(heldOut)) add("auc", scoreHeldOutModels(heldOut, matrices, targetFeatureSets))
       if (!nzchar(extraction)) {
         for (i in which(odal$task == task & odal$heldOutDatabase != site)) {
           add("odalInitialization", replayOdalInitialization(odal[i, ], matrices, site))
@@ -110,15 +124,24 @@ siteMatrices <- function(plpData) {
 }
 
 # AUC with DeLong intervals and agreement with pooled lasso for the models held out at one site.
-scoreHeldOutModels <- function(models, matrices) {
+scoreHeldOutModels <- function(models, matrices, targetFeatureSets = character()) {
   scored <- lapply(seq_len(nrow(models)), function(i) {
     m <- models[i, ]
     model <- FederatedLearning::loadModel(m$directory, m$task, m$heldOutDatabase, m$featureSet, m$method)
-    c(list(row = m), modelPredictions(model, matrices$get(model)))
+    data <- matrices$get(model)
+    out <- c(list(row = m), modelPredictions(model, data))
+    if (m$method == "PooledLasso") out$target <- function() targetLassoPredictions(model, data, m$fold)
+    out
   })
   groups <- split(seq_along(scored), paste(models$featureSet, models$fold))
   do.call(rbind, lapply(groups, function(index) {
     group <- scored[index]
+    pooled <- which(vapply(group, function(s) s$row$method == "PooledLasso", logical(1)))[1]
+    if (!is.na(pooled) && group[[pooled]]$row$featureSet %in% targetFeatureSets) {
+      row <- group[[pooled]]$row
+      row$method <- "TargetLasso"
+      group[[length(group) + 1L]] <- c(list(row = row), group[[pooled]]$target())
+    }
     reference <- which(vapply(group, function(s) s$row$method == "PooledLasso", logical(1)))[1]
     y <- group[[1]]$outcome
     # Probabilities, as the framework's AUC ranks them.
@@ -132,8 +155,11 @@ scoreHeldOutModels <- function(models, matrices) {
         outcomes = sum(y), auc = delong$auc[k], aucSe = se, aucLower = delong$auc[k] - z * se,
         aucUpper = delong$auc[k] + z * se, referenceDirectory = NA_character_, aucDifference = NA_real_,
         differenceSe = NA_real_, differenceLower = NA_real_, differenceUpper = NA_real_, differenceP = NA_real_,
+        modelBasedAuc = modelBasedAuc(group[[k]]$probability),
+        top10OutcomeShare = sum(y[topRisk(group[[k]]$probability, 0.1)]) / sum(y),
         linearPredictorPearson = NA_real_, linearPredictorSpearman = NA_real_,
-        probabilityMeanAbsDifference = NA_real_, probabilityP99AbsDifference = NA_real_, stringsAsFactors = FALSE)
+        probabilityMeanAbsDifference = NA_real_, probabilityP99AbsDifference = NA_real_,
+        top10Overlap = NA_real_, top1Overlap = NA_real_, stringsAsFactors = FALSE)
       if (!is.na(reference)) {
         r <- group[[reference]]
         differenceSe <- sqrt(max(delong$covariance[k, k] + delong$covariance[reference, reference] -
@@ -150,10 +176,63 @@ scoreHeldOutModels <- function(models, matrices) {
         out$linearPredictorSpearman <- stats::cor(group[[k]]$linearPredictor, r$linearPredictor, method = "spearman")
         out$probabilityMeanAbsDifference <- mean(absolute)
         out$probabilityP99AbsDifference <- unname(stats::quantile(absolute, 0.99))
+        overlap <- function(share) {
+          length(intersect(topRisk(group[[k]]$probability, share), topRisk(r$probability, share))) /
+            length(topRisk(r$probability, share))
+        }
+        out$top10Overlap <- overlap(0.1)
+        out$top1Overlap <- overlap(0.01)
       }
       out
     }))
   }))
+}
+
+# Out-of-fold predictions of a lasso developed in the held-out database itself, with pooled lasso's
+# retained predictors: five outcome-stratified folds, each fitted and tuned as the framework tunes a
+# local lasso (three inner folds, the same penalty search and solver).
+targetLassoPredictions <- function(pooled, data, fold, folds = 5L) {
+  framework <- asNamespace("FederatedLearning")
+  intercept <- isTRUE(pooled$config$intercept)
+  # The saved feature map already holds only the retained predictors, unscaled.
+  if (any(pooled$preprocessing$normFactors != 1)) stop("TargetLasso does not support normalized predictors", call. = FALSE)
+  site <- list(xMatrix = data$xMatrix, yLabels = data$yLabels)
+  seed <- 42L + fold
+  outer <- framework$.stratifiedFoldId(site$yLabels, folds, seed)
+  linearPredictor <- numeric(length(site$yLabels))
+  for (k in seq_len(folds)) {
+    fit <- framework$tuneLocalCyclopsFit(framework$clientRows(site, which(outer != k)), pooled$args, seed + k,
+      intercept)
+    held <- which(outer == k)
+    linearPredictor[held] <- as.numeric(site$xMatrix[held, , drop = FALSE] %*% fit$w)
+  }
+  list(outcome = site$yLabels, probability = stats::plogis(linearPredictor), linearPredictor = linearPredictor)
+}
+
+# The entries with the highest `share` of predicted risk, ties broken by position.
+topRisk <- function(probability, share) {
+  order(-probability, seq_along(probability))[seq_len(max(1L, ceiling(share * length(probability))))]
+}
+
+#' Model-based AUC
+#'
+#' The AUC expected if the predicted risks were the true risks (van Klaveren
+#' et al., 2016): over all ordered pairs of distinct entries, the share of the
+#' expected outcome-discordant pairs that the risks order correctly, with ties
+#' counted as one half. It depends on the spread of the risks, that is, on case
+#' mix, and not on the observed outcomes.
+#'
+#' @param probability Predicted risks.
+#' @return The model-based AUC.
+#' @keywords internal
+modelBasedAuc <- function(probability) {
+  p <- sort(probability)
+  tie <- cumsum(c(TRUE, diff(p) != 0))
+  risk <- rowsum(p, tie)[, 1]
+  noRisk <- rowsum(1 - p, tie)[, 1]
+  both <- rowsum(p * (1 - p), tie)[, 1]
+  concordant <- sum(risk * (cumsum(noRisk) - noRisk)) + 0.5 * sum(risk * noRisk - both)
+  concordant / (sum(p) * sum(1 - p) - sum(p * (1 - p)))
 }
 
 # Predicted risk and linear predictor of a saved model, as FederatedLearning::predictModel() computes

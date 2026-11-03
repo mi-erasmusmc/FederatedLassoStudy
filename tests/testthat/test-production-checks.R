@@ -22,3 +22,19 @@ test_that("prevalence suppresses small counts of patients with or without the co
   expect_identical(prevalence$withCovariate, c(NA, 40, NA))
   expect_identical(prevalence$percent, c(NA, 40, NA))
 })
+
+test_that("the model-based AUC matches its pairwise definition", {
+  set.seed(2)
+  p <- c(round(runif(40), 1), 0.5, 0.5)
+  pairs <- expand.grid(i = seq_along(p), j = seq_along(p))
+  pairs <- pairs[pairs$i != pairs$j, ]
+  weight <- p[pairs$i] * (1 - p[pairs$j])
+  score <- (p[pairs$i] > p[pairs$j]) + 0.5 * (p[pairs$i] == p[pairs$j])
+  expect_equal(modelBasedAuc(p), sum(weight * score) / sum(weight))
+  expect_equal(modelBasedAuc(rep(0.2, 10)), 0.5)
+})
+
+test_that("top-risk sets have the requested size and break ties by position", {
+  expect_identical(topRisk(c(0.1, 0.9, 0.5, 0.9), 0.5), c(2L, 4L))
+  expect_identical(topRisk(c(0.1, 0.2), 0.01), 2L)
+})

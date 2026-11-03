@@ -11,7 +11,8 @@ runProductionChecks(
   outputDirectory,
   prevalenceCovariateIds = atrialFibrillationCovariateId,
   taskDirectories = NULL,
-  minCellCount = 5L
+  minCellCount = 5L,
+  targetFeatureSets = c("ageSexPhenotypes", "ageSexConditions")
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ analysis first.}
 \item{prevalenceCovariateIds}{Covariates whose prevalence is reported.}
 
 \item{minCellCount}{Smallest count reported.}
+
+\item{targetFeatureSets}{Predictor sets for which the \code{TargetLasso}
+reference is fitted.}
 }
 \value{
 The export tables, invisibly.
@@ -37,9 +41,22 @@ directories, reading each site's data once per task and extraction:
 paired DeLong difference from pooled lasso on the same patients. The
 reference is the pooled lasso of the same task, predictor set and fold in
 the first directory that has one, so list the main analysis first. The
-table also holds the agreement of each model's linear predictor with
-pooled lasso's (Pearson and Spearman correlation) and the mean and 99th
-percentile absolute difference in predicted risk.
+table also holds:
+\itemize{
+\item the model-based AUC (van Klaveren et al., 2016): the AUC expected in
+the held-out population if the model's own risks were correct, which
+reflects case mix alone;
+\item the agreement of each model's linear predictor with pooled lasso's
+(Pearson and Spearman correlation) and the mean and 99th percentile
+absolute difference in predicted risk;
+\item the share of pooled lasso's top 10\% and top 1\% of predicted risk that
+the model also places there, and the share of outcomes in its own top
+10\%.
+For \code{targetFeatureSets}, a \code{TargetLasso} row adds a lasso fitted inside
+the held-out database by five outcome-stratified folds, each tuned as a
+local lasso, and scored on its out-of-fold predictions: the performance a
+model developed in that database itself could reach.
+}
 \item \code{covariatePrevalence}: for each task and database, the share of the
 evaluated population with each of \code{prevalenceCovariateIds}, with counts
 below \code{minCellCount} (of patients with or without it) suppressed.

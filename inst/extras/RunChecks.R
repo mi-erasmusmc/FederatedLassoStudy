@@ -5,8 +5,9 @@
 #
 #   source(system.file("extras", "RunChecks.R", package = "FederatedLassoStudy"))
 #
-# It reads saved models and site data and fits nothing but the local logistic
-# fits with which ODAL starts. It writes results/productionChecks/export and
+# It reads saved models and site data. It fits only the local logistic fits
+# with which ODAL starts and a reference lasso developed inside each held-out
+# database by cross-validation. It writes results/productionChecks/export and
 # checks.tar.gz. Set `sites` or `dataRoot` before sourcing to change them.
 
 library(FederatedLassoStudy)

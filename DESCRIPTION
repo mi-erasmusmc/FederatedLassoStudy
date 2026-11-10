@@ -15,6 +15,7 @@ Imports:
     grDevices,
     grid,
     Matrix,
+    methods,
     parallel,
     PatientLevelPrediction,
     stats,

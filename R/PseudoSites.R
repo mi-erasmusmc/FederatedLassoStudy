@@ -144,16 +144,17 @@ siteLabels <- function(directory, population, database) {
   as.integer(factor(label))
 }
 
-# The main-analysis result directory holding pooled lasso for this task, predictor set and holdout.
-mainDirectory <- function(directories, task, featureSet, holdout) {
+# The main-analysis result directory holding `method` (pooled lasso by default) for this task, predictor
+# set and holdout.
+mainDirectory <- function(directories, task, featureSet, holdout, method = "PooledLasso") {
   for (directory in directories) {
     results <- FederatedLearning::readComparisonResults(directory)
-    if (any(results$task == task & results$featureSet == featureSet & results$method == "PooledLasso" &
+    if (any(results$task == task & results$featureSet == featureSet & results$method == method &
       results$clientId == holdout)) {
       return(directory)
     }
   }
-  stop("No main-analysis pooled lasso for ", task, " with ", featureSet, " and ", holdout, " held out",
+  stop("No main-analysis ", method, " for ", task, " with ", featureSet, " and ", holdout, " held out",
     call. = FALSE)
 }
 

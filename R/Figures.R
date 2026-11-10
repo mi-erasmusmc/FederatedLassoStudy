@@ -544,7 +544,7 @@ validityFigure <- function(auc) {
       caption = paste0("Expected: the AUC pooled lasso would reach if its predicted risks were the true risks ",
         "in the held-out database (model-based AUC),\nwhich depends on case mix only. Grey line: from expected to ",
         "observed. Target-database lasso: developed in the held-out database by\nfive-fold cross-validation ",
-        "on pooled lasso's retained predictors, scored out of fold.")) +
+        "on the predictors kept by the common filter, scored out of fold.")) +
     figureTheme() +
     ggplot2::theme(strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 0, hjust = 0),
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))

@@ -91,3 +91,54 @@ test_that("the report figures are drawn from the report tables", {
   paths <- writeStudyFigures(out, calibrationCurveDirectory = curveDirectory)
   expect_true(all(file.size(file.path(out, c("calibration.pdf", "calibration.png"))) > 0))
 })
+
+fakeChecks <- function() {
+  methods <- c("PooledLasso", "DualAvg", "ODAL1", "ADAP1", "LocalAvgLasso", "LocalEnsembleLasso",
+    "BiggestSiteLasso", "TargetLasso")
+  difference <- c(0, 0.001, -0.02, -0.01, -0.004, 0.003, -0.012, 0.01)
+  rows <- merge(data.frame(featureSet = c("ageSexPhenotypes", "ageSexConditions"), heldOutDatabase = c("A", "B"),
+    stringsAsFactors = FALSE), data.frame(method = methods, difference = difference, stringsAsFactors = FALSE))
+  rows <- rows[!(rows$method == "ODAL1" & rows$featureSet == "ageSexConditions"), ]
+  # Bleeding after warfarin in JMDC: a target-database lasso far beyond the axis.
+  rows$difference[rows$method == "TargetLasso" & rows$heldOutDatabase == "B"] <- -0.24
+  data.frame(resultsDirectory = paste0("DvtTetraplegia_", rows$featureSet), task = "DvtTetraplegia",
+    featureSet = rows$featureSet, heldOutDatabase = rows$heldOutDatabase, method = rows$method,
+    auc = 0.7 + rows$difference, aucDifference = rows$difference, differenceLower = rows$difference - 0.01,
+    differenceUpper = rows$difference + 0.01, modelBasedAuc = 0.66,
+    linearPredictorPearson = 1 - abs(rows$difference), top1Overlap = 1 - 10 * abs(rows$difference),
+    stringsAsFactors = FALSE)
+}
+
+test_that("the check figures use the main-analysis rows with the report's flags", {
+  checks <- fakeChecks()
+  sensitivity <- checks[checks$method == "DualAvg", ]
+  sensitivity$resultsDirectory <- "equalWeights_ageSexPhenotypes"
+  evaluations <- data.frame(task = "DvtTetraplegia", featureSet = "ageSexPhenotypes", heldOutDatabase = "A",
+    method = c("ODAL1", "ADAP1"), flagged = c(TRUE, FALSE), stringsAsFactors = FALSE)
+  main <- mainAnalysisChecks(rbind(checks, sensitivity), evaluations)
+  expect_identical(nrow(main), nrow(checks))
+  expect_identical(main$method[main$flagged], "ODAL1")
+  expect_identical(levels(databaseFactor(c("OPTUMEHR", "CCAE"), reverse = TRUE)), c("Optum EHR", "CCAE"))
+  expect_identical(signedNumber(c(-0.012, 0, 0.004), 2), c("-0.01", "0.00", "+0.00"))
+})
+
+test_that("the fidelity, validity, cost and interval figures are drawn from the checks", {
+  skip_if_not_installed("ggplot2")
+  results <- fakeResults()
+  results$featureSet[results$fold == 2L] <- "ageSexConditions"
+  results <- results[!(results$method == "ODAL1" & results$fold == 2L), ]
+  local_mocked_bindings(
+    readComparisonResults = function(outputDirectory) results,
+    .package = "FederatedLearning"
+  )
+  out <- tempfile()
+  on.exit(unlink(out, recursive = TRUE), add = TRUE)
+  writeStudyReport("run1", out)
+  checkDirectory <- file.path(out, "checks")
+  dir.create(file.path(checkDirectory, "export"), recursive = TRUE)
+  utils::write.csv(fakeChecks(), file.path(checkDirectory, "export", "auc.csv"), row.names = FALSE)
+  paths <- writeStudyFigures(out, productionChecksDirectory = checkDirectory)
+  figures <- c("fidelity", "validity", "cost", "aucIntervals_ageSexPhenotypes", "aucIntervals_ageSexConditions")
+  expect_true(all(paste0(figures, ".pdf") %in% basename(paths)))
+  expect_true(all(file.size(paths) > 0))
+})

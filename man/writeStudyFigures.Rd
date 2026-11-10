@@ -7,7 +7,8 @@
 writeStudyFigures(
   reportDirectory,
   outputDirectory = reportDirectory,
-  calibrationCurveDirectory = NULL
+  calibrationCurveDirectory = NULL,
+  productionChecksDirectory = NULL
 )
 }
 \arguments{
@@ -17,6 +18,9 @@ writeStudyFigures(
 
 \item{calibrationCurveDirectory}{Output of \code{\link[=runCalibrationCurveExport]{runCalibrationCurveExport()}}, or
 \code{NULL} to skip the calibration figure.}
+
+\item{productionChecksDirectory}{Output of \code{\link[=runProductionChecks]{runProductionChecks()}} (holding
+\code{export/auc.csv}), or \code{NULL} to skip the figures that need it.}
 }
 \value{
 The figure paths, invisibly.
@@ -37,5 +41,23 @@ warfarin, both with phenotype predictors.
 }
 }
 \details{
+With \code{productionChecksDirectory}, the main-analysis rows of its \code{auc} table
+add:
+\itemize{
+\item \code{fidelity}: each workflow's AUC difference from pooled lasso against (A)
+the correlation of its linear predictor with pooled lasso's, with the
+median difference of unflagged fits within bands of that correlation, and
+(B) the share of pooled lasso's top 1\% of predicted risk it also places
+there. The lasso developed in the held-out database is left out;
+\item \code{validity}: per task and held-out database, pooled lasso's observed AUC
+beside its model-based AUC (expected from case mix alone) and the AUC of
+the lasso developed in the held-out database;
+\item \code{cost}: per workflow, the median bytes and exchanges of one evaluation
+(DualAvg with and without penalty tuning) beside median top 1\% overlap
+and AUC difference from pooled lasso, with interquartile ranges;
+\item \verb{aucIntervals_<featureSet>}: every paired AUC difference from pooled
+lasso with its DeLong 95\% interval, one panel per workflow.
+}
+
 Each figure is written as PDF and PNG. Requires ggplot2.
 }

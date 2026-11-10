@@ -12,7 +12,6 @@ License: Apache License (>= 2)
 Imports:
     Cyclops,
     FederatedLearning (>= 0.3.0.9000),
-    grDevices,
     grid,
     Matrix,
     methods,

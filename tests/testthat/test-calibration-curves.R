@@ -54,5 +54,5 @@ test_that("the calibration figures draw one figure per task and predictor set", 
   plot <- calibrationFigure(curves[curves$featureSet == "ageSexPhenotypes", ])
   expect_identical(levels(plot$data$panel), c("Pooled lasso", "DualAvg"))
   offScale <- plot$layers[[5]]$data
-  expect_identical(offScale$label, "1 point off scale")
+  expect_identical(offScale$label, "Off scale: 1 right")
 })

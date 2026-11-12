@@ -15,7 +15,8 @@ runConvergedReference(
   taskDirectories = NULL,
   tolerance = 1e-10,
   maxIterations = 20000L,
-  threads = 1L
+  threads = 1L,
+  target = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ runConvergedReference(
 \item{tasks, featureSets, holdouts}{The evaluations to refit.}
 
 \item{tolerance, maxIterations, threads}{Cyclops controls of the refits.}
+
+\item{target}{Whether to fit the target-database lasso.}
 }
 \value{
 The export tables, invisibly.
@@ -46,27 +49,40 @@ probability ensembling and largest-database models are built from the
 converged local fits with the saved weights.
 }
 \details{
+With \code{target}, the lasso developed in the held-out database (the
+\code{TargetLasso} of \code{\link[=runProductionChecks]{runProductionChecks()}}: five outcome-stratified folds, each
+tuned as a local lasso, scored out of fold) is fitted again, and each fold's
+final fit is also refitted to convergence at the penalty its tuning
+selected.
+
 Every saved model of the evaluation and every converged model is then scored
 in the held-out database against the converged pooled lasso, with the
 measures of \code{\link[=runProductionChecks]{runProductionChecks()}}: AUC with DeLong's 95\% interval, the
 paired DeLong difference from the reference, the model-based AUC, the
 correlation of the linear predictors, the mean and 99th percentile absolute
 difference in predicted risk and the overlap of the top 10\% and top 1\% of
-predicted risk, plus calibration-in-the-large and slope.
+predicted risk, plus calibration-in-the-large, slope and the framework's
+calibration curve and integrated calibration index.
 
 The \code{export} directory holds:
 \itemize{
 \item \code{referenceFits}: one row per saved and converged fit (\code{savedPooled},
-\code{convergedPooled}, \code{savedDualAvg}, \code{convergedDualAvgPenalty}, and
-\code{savedLocal} and \code{convergedLocal} per training database): its penalty on
+\code{convergedPooled}, \code{savedDualAvg}, \code{convergedDualAvgPenalty}, \code{savedLocal}
+and \code{convergedLocal} per training database, and \code{tunedTarget} and
+\code{convergedTarget} per fold of the target-database lasso): its penalty on
 the mean log loss scale, lasso objective and largest optimality violation
 on its own training data, age coefficient, intercept, nonzero count and
 solver status. An \code{averageCheck} row per evaluation holds in \code{check} the
 largest difference between the saved coefficient average and the weighted
 sum of the saved local models, which must be about zero for the converged
-average to be built the same way.
-\item \code{referenceScores}: one row per scored model (\code{kind} saved or converged),
-the converged pooled lasso first as the reference.
+average to be built the same way. A failed target-database lasso leaves a
+\code{targetLasso} row with the error.
+\item \code{referenceScores}: one row per scored model (\code{kind} saved, converged or
+target), the converged pooled lasso first as the reference;
+\code{convergedLocal} rows name their training database in \code{sourceDatabase}.
+\item \code{referenceCurves}: every scored model's calibration curve, 50 points from
+the 1st to the 99th percentile of predicted risk with pointwise 95\%
+intervals.
 \item \code{referenceCoefficients}: the converged models' coefficients by covariate
 id, age and the intercept included.
 }

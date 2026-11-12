@@ -29,7 +29,8 @@ fakeSavedModels <- function(train, loose) {
     savedComponent(w, 2 / (0.004 * length(t$yLabels))^2, weight, site)
   }, train, names(train), weights)
   average <- Reduce(`+`, Map(function(component, weight) weight * componentCoefficients(component), components, weights))
-  list(PooledLasso = list(models = list(savedComponent(pooled, 2 / (lambda * length(y))^2))),
+  list(PooledLasso = list(models = list(savedComponent(pooled, 2 / (lambda * length(y))^2)),
+      config = list(intercept = TRUE), args = list()),
     DualAvg = list(models = list(savedComponent(dualAvg, 2 * lambda))),
     LocalAvgLasso = list(models = list(savedComponent(average)), components = unname(components)),
     LocalEnsembleLasso = list(models = unname(components)),
@@ -45,7 +46,7 @@ test_that("converged refits meet the optimality conditions and the converged com
   out <- referenceEvaluation(train, test, saved, control)
   fits <- out$referenceFits
   converged <- fits[startsWith(fits$fit, "converged"), ]
-  expect_setequal(unique(converged$fit), c("convergedPooled", "convergedDualAvgPenalty", "convergedLocal"))
+  expect_setequal(unique(converged$fit), c("convergedPooled", "convergedDualAvgPenalty", "convergedLocal", "convergedTarget"))
   expect_true(all(is.na(converged$error)))
   expect_true(all(converged$kktMax < 1e-6))
   expect_lt(fits$check[fits$fit == "averageCheck"], 1e-12)
@@ -73,13 +74,29 @@ test_that("converged refits meet the optimality conditions and the converged com
   expect_equal(scores$aucDifference[[1]], 0)
   expect_equal(scores$linearPredictorPearson[[1]], 1)
   expect_setequal(scores$model, c("convergedPooled", names(saved), "convergedDualAvgPenalty", "convergedLocalAvgLasso",
-    "convergedBiggestSiteLasso", "convergedLocalEnsembleLasso"))
+    "convergedBiggestSiteLasso", "convergedLocalEnsembleLasso", "convergedLocal", "TargetLasso", "convergedTargetLasso"))
+  expect_setequal(scores$sourceDatabase[scores$model == "convergedLocal"], c("A", "B", "C"))
   expect_identical(scores$kind[scores$model == "PooledLasso"], "saved")
   # The converged largest-database model is the converged local fit of the largest database.
   biggest <- local$coefficient[local$sourceDatabase == "A"]
   expect_equal(scores$auc[scores$model == "convergedBiggestSiteLasso"],
     delongAuc(test$yLabels, cbind(stats::plogis(as.numeric(test$xMatrix %*% biggest))))$auc)
   expect_true(all(scores$top1Overlap >= 0 & scores$top1Overlap <= 1))
+
+  # The target-database lasso: five tuned folds, each refitted to convergence at its own penalty.
+  tuned <- fits[fits$fit == "tunedTarget", ]
+  refitted <- fits[fits$fit == "convergedTarget", ]
+  expect_identical(nrow(tuned), 5L)
+  expect_equal(refitted$lambda, tuned$lambda)
+  expect_true(all(refitted$objective <= tuned$objective + 1e-12))
+  # A model has a curve on the framework's 50 percentiles, and an ICI, unless it gives fewer than five
+  # distinct predictions; the reference has one.
+  curves <- out$referenceCurves
+  drawn <- paste(scores$model, scores$sourceDatabase) %in% unique(paste(curves$model, curves$sourceDatabase))
+  expect_identical(is.finite(scores$calibrationIci), drawn)
+  expect_true(drawn[[1]])
+  expect_true(all(table(paste(curves$model, curves$sourceDatabase)) <= 50L))
+  expect_true(all(curves$lower <= curves$observed & curves$observed <= curves$upper))
 })
 
 test_that("a model on other predictors or from an unknown database is refused", {

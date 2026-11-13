@@ -32,6 +32,12 @@ test_that("sensitivity settings add options only where they differ from the main
   expect_identical(options("PooledLasso", pooledTuning = "rows")$PooledLasso, list(pooledTuning = "rows"))
   expect_identical(options("ADAP1", adapInitBackend = "localCyclops")$ADAP1$adapInitBackend, "localCyclops")
   expect_error(studyMethodSettings(leadRank = 0), "leadRank")
+  expect_false("adapEigenDiagnostics" %in% unlist(lapply(main, names)))
+  final <- options(c("ADAP1", "ADAP2", "PooledLasso"), adapEigenDiagnostics = "final")
+  expect_identical(final$ADAP1$adapEigenDiagnostics, "final")
+  expect_identical(final$ADAP2[setdiff(names(final$ADAP2), "adapEigenDiagnostics")], main$ADAP2)
+  expect_length(final$PooledLasso, 0L)
+  expect_error(studyMethodSettings(adapEigenDiagnostics = "some"), "should be one of")
 })
 
 test_that("each sensitivity analysis runs into its own result directory", {

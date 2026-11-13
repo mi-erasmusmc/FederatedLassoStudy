@@ -12,7 +12,8 @@ studyMethodSettings(
   adapInitBackend = "glmnet_sparse",
   leadRank = 1L,
   localWeighting = "sampleSize",
-  pooledTuning = "databases"
+  pooledTuning = "databases",
+  adapEigenDiagnostics = "all"
 )
 }
 \arguments{
@@ -40,6 +41,11 @@ and the probability ensemble: \code{"sampleSize"} (the default) or
 \item{pooledTuning}{Pooled-lasso penalty selection: \code{"databases"} (the
 default, each training database held out in turn) or \code{"rows"}
 (outcome-stratified three-fold CV over the pooled training rows).}
+
+\item{adapEigenDiagnostics}{ADAP's eigendecomposition diagnostics: \code{"all"}
+(the default, as in the main analysis), \code{"final"} (final fit and the
+server's correction only) or \code{"none"}. They cost O(p^3) each and dominate
+the run time at thousands of predictors; the fitted models are the same.}
 }
 \value{
 A list of \code{methodSettings} objects. Settings at their defaults add

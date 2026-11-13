@@ -22,7 +22,8 @@ runStudy(
   leadRank = 1L,
   localWeighting = "sampleSize",
   pooledTuning = "databases",
-  rerunErrors = FALSE
+  rerunErrors = FALSE,
+  adapEigenDiagnostics = "all"
 )
 }
 \arguments{
@@ -63,6 +64,9 @@ Defaults to \code{"glmnet_sparse"}.}
 
 \item{rerunErrors}{Refit combinations whose earlier fit ended in an error;
 otherwise a resumed run keeps them as they are.}
+
+\item{adapEigenDiagnostics}{ADAP's eigendecomposition diagnostics, passed to
+\code{\link[=studyMethodSettings]{studyMethodSettings()}}: \code{"all"} (the default), \code{"final"} or \code{"none"}.}
 }
 \value{
 The results table, invisibly.

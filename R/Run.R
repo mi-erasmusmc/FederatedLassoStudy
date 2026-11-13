@@ -21,6 +21,8 @@
 #'   Defaults to `"glmnet_sparse"`.
 #' @param leadRank,localWeighting,pooledTuning Sensitivity settings passed to
 #'   [studyMethodSettings()]; the defaults are those of the main analysis.
+#' @param adapEigenDiagnostics ADAP's eigendecomposition diagnostics, passed to
+#'   [studyMethodSettings()]: `"all"` (the default), `"final"` or `"none"`.
 #' @param taskDirectories Task directory names under `dataRoot`, named by task,
 #'   where they differ from that layout.
 #' @param hosts Worker hosts, one per site or a single host for all sites.
@@ -37,13 +39,13 @@ runStudy <- function(dataRoot, siteIds, outputDirectory, tasks = names(studyTask
                      dualAvgLambda = NULL, dualAvgRounds = 10000L, taskDirectories = NULL,
                      hosts = "localhost", mirai = FALSE, adapInitBackend = "glmnet_sparse",
                      leadRank = 1L, localWeighting = "sampleSize", pooledTuning = "databases",
-                     rerunErrors = FALSE) {
+                     rerunErrors = FALSE, adapEigenDiagnostics = "all") {
   if (missing(methods) && "ageSexConditions" %in% featureSets) {
     methods <- setdiff(studyMethods(), c("ODAL1", "ODAL2"))
   }
   sites <- studySites(dataRoot, siteIds, tasks, featureSets, taskDirectories)
   methodSettings <- studyMethodSettings(methods, dualAvgEpsilon, dualAvgLambda, dualAvgRounds, adapInitBackend,
-    leadRank, localWeighting, pooledTuning)
+    leadRank, localWeighting, pooledTuning, adapEigenDiagnostics)
   featureSettings <- studyFeatureSettings(featureSets)
   for (task in tasks) {
     FederatedLearning::runComparison(

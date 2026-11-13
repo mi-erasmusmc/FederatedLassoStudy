@@ -4,10 +4,11 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `ced6250` (after release `v0.3.0`). The main and
-sensitivity analyses ran with `df1927c`; `ced6250` corrects
+framework, pinned to commit `dddc0b5` (after release `v0.3.0`). The main and
+sensitivity analyses ran with `df1927c`. `ced6250` corrects
 calibration-in-the-large, which `df1927c` reported as the free-slope
-recalibration intercept.
+recalibration intercept, and `dddc0b5` adds `adapEigenDiagnostics`, which can
+skip ADAP's eigendecomposition diagnostics at thousands of predictors.
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection

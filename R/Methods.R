@@ -41,13 +41,18 @@ studyMethods <- function() {
 #' @param pooledTuning Pooled-lasso penalty selection: `"databases"` (the
 #'   default, each training database held out in turn) or `"rows"`
 #'   (outcome-stratified three-fold CV over the pooled training rows).
+#' @param adapEigenDiagnostics ADAP's eigendecomposition diagnostics: `"all"`
+#'   (the default, as in the main analysis), `"final"` (final fit and the
+#'   server's correction only) or `"none"`. They cost O(p^3) each and dominate
+#'   the run time at thousands of predictors; the fitted models are the same.
 #' @return A list of `methodSettings` objects. Settings at their defaults add
 #'   no options, so main-analysis runs are unchanged.
 #' @export
 studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10,
                                 dualAvgLambda = NULL, dualAvgRounds = 10000L,
                                 adapInitBackend = "glmnet_sparse", leadRank = 1L,
-                                localWeighting = "sampleSize", pooledTuning = "databases") {
+                                localWeighting = "sampleSize", pooledTuning = "databases",
+                                adapEigenDiagnostics = "all") {
   if (!length(methods) || !all(methods %in% studyMethods())) {
     stop("methods must name studyMethods(): ", paste(studyMethods(), collapse = ", "), call. = FALSE)
   }
@@ -59,6 +64,8 @@ studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10
   }
   localWeighting <- match.arg(localWeighting, c("sampleSize", "equalClient"))
   pooledTuning <- match.arg(pooledTuning, c("databases", "rows"))
+  adapEigenDiagnostics <- match.arg(adapEigenDiagnostics, c("all", "final", "none"))
+  eigenOption <- if (adapEigenDiagnostics != "all") list(adapEigenDiagnostics = adapEigenDiagnostics)
   lead <- if (leadRank != 1L) list(leadRank = as.integer(leadRank))
   lapply(methods, function(method) {
     options <- switch(method,
@@ -67,7 +74,7 @@ studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10
         if (!is.null(dualAvgLambda)) list(dualavgTuneLambda = FALSE, dualavgLambda = dualAvgLambda)),
       ODAL1 = , ODAL2 = c(list(odalInit = "ridgeFallback", odalRidgeLambda = 1e-8, epsilon = 1e-10), lead),
       ADAP1 = , ADAP2 = c(list(epsilon = 1e-10, adapInitFolds = 3L, adapInitStratify = TRUE),
-        if (!is.null(adapInitBackend)) list(adapInitBackend = adapInitBackend), lead),
+        if (!is.null(adapInitBackend)) list(adapInitBackend = adapInitBackend), lead, eigenOption),
       LocalAvgLasso = if (localWeighting != "sampleSize") list(localAverageWeighting = localWeighting) else list(),
       LocalEnsembleLasso = if (localWeighting != "sampleSize") list(localEnsembleWeighting = localWeighting) else list(),
       PooledLasso = if (pooledTuning != "databases") list(pooledTuning = pooledTuning) else list(),

@@ -7,9 +7,11 @@
 # It reads the saved main-analysis models and the site data, refits pooled lasso, the pooled data at
 # DualAvg's penalty, every local lasso and the target-database lasso to convergence, scores every
 # model against the converged pooled lasso with calibration curves, and writes
-# results/convergedModels/export and convergedModels.tar.gz. The export tables are rewritten after
-# each task and predictor set; if the run stops, sourcing the script again continues from there. Set
-# `sites`, `dataRoot` or `threads` before sourcing to change them.
+# results/convergedCalibrated/export and convergedCalibrated.tar.gz. The export tables are rewritten
+# after each task and predictor set; if the run stops, sourcing the script again continues from
+# there. Set `sites`, `dataRoot` or `threads` before sourcing to change them. Framework versions
+# before the pinned one reported the free-slope recalibration intercept as calibration-in-the-large,
+# so the output directory is new and the earlier export (results/convergedModels) is not resumed.
 
 library(FederatedLassoStudy)
 local({
@@ -27,10 +29,10 @@ if (!exists("dataRoot", inherits = FALSE)) dataRoot <- "data"
 if (!exists("threads", inherits = FALSE)) threads <- 4L
 
 started <- Sys.time()
-tables <- runConvergedReference(dataRoot, sites, Sys.glob("results/final/*"), "results/convergedModels",
+tables <- runConvergedReference(dataRoot, sites, Sys.glob("results/final/*"), "results/convergedCalibrated",
   threads = threads)
-bundle <- Sys.glob("results/convergedModels/export/*.csv")
-utils::tar("convergedModels.tar.gz", files = bundle, compression = "gzip", tar = "internal")
+bundle <- Sys.glob("results/convergedCalibrated/export/*.csv")
+utils::tar("convergedCalibrated.tar.gz", files = bundle, compression = "gzip", tar = "internal")
 fits <- tables$referenceFits
 refits <- fits[startsWith(fits$fit, "converged"), ]
 checks <- fits$check[fits$fit == "averageCheck"]
@@ -53,13 +55,22 @@ if (file.exists("results/productionChecks/export/auc.csv")) {
   targetGap <- gap(target$auc, previous$auc[match(paste(target$task, target$featureSet, target$heldOutDatabase),
     paste(previous$task, previous$featureSet, previous$heldOutDatabase))])
 }
-message(sprintf(paste0("\n%s  Wrote convergedModels.tar.gz (%d files) after %.1f h. %d of %d refits failed; ",
+# The converged-reference run computed calibration-in-the-large correctly (slope fixed at one) for the
+# saved models and the converged combinations; diverged fits with extreme values are left out.
+calibrationGap <- NA_real_
+if (file.exists("results/convergedReference/export/referenceScores.csv")) {
+  earlier <- utils::read.csv("results/convergedReference/export/referenceScores.csv", stringsAsFactors = FALSE)
+  earlier <- earlier[is.finite(earlier$calibrationInTheLarge) & abs(earlier$calibrationInTheLarge) < 50, ]
+  now <- scores[match(key(earlier, "heldOutDatabase"), key(scores, "heldOutDatabase")), ]
+  calibrationGap <- gap(now$calibrationInTheLarge, earlier$calibrationInTheLarge)
+}
+message(sprintf(paste0("\n%s  Wrote convergedCalibrated.tar.gz (%d files) after %.1f h. %d of %d refits failed; ",
   "target-database lasso failed in %d evaluations (1 expected). ",
   "Largest optimality violation of the refits %.1g (should be below 1e-6). ",
   "Largest coefficient-average check %.1g (should be below 1e-8). ",
-  "Saved models reproduce the reported AUCs to %.1g, slopes to %.1g and ICI to %.1g, and the target-database lasso ",
-  "its earlier AUCs to %.1g (all should be below 1e-6)."),
+  "Saved models reproduce the reported AUCs to %.1g, slopes to %.1g and ICI to %.1g, the target-database lasso ",
+  "its earlier AUCs to %.1g, and calibration-in-the-large the converged-reference run to %.1g (all should be below 1e-6)."),
   format(Sys.time(), "%H:%M"), length(bundle), as.numeric(difftime(Sys.time(), started, units = "hours")),
   sum(!is.na(refits$error)), nrow(refits), sum(fits$fit == "targetLasso"), max(refits$kktMax, na.rm = TRUE),
   max(checks, na.rm = TRUE), gap(saved$auc, reported$auc[index]), gap(saved$calibrationSlope, reported$calibrationSlope[index]),
-  gap(saved$calibrationIci, reported$calibrationIci[index]), targetGap))
+  gap(saved$calibrationIci, reported$calibrationIci[index]), targetGap, calibrationGap))

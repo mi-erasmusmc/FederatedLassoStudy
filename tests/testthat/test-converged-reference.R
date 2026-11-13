@@ -82,6 +82,11 @@ test_that("converged refits meet the optimality conditions and the converged com
   expect_equal(scores$auc[scores$model == "convergedBiggestSiteLasso"],
     delongAuc(test$yLabels, cbind(stats::plogis(as.numeric(test$xMatrix %*% biggest))))$auc)
   expect_true(all(scores$top1Overlap >= 0 & scores$top1Overlap <= 1))
+  # Calibration-in-the-large fixes the slope at one: it solves sum(y) = sum(plogis(lp + a)), which
+  # differs from the free-slope intercept unless the slope is one.
+  lp <- as.numeric(test$xMatrix %*% biggest)
+  root <- stats::uniroot(function(a) sum(test$yLabels) - sum(stats::plogis(lp + a)), c(-10, 10), tol = 1e-12)$root
+  expect_equal(scores$calibrationInTheLarge[scores$model == "convergedBiggestSiteLasso"], root, tolerance = 1e-6)
 
   # The target-database lasso: five tuned folds, each refitted to convergence at its own penalty.
   tuned <- fits[fits$fit == "tunedTarget", ]

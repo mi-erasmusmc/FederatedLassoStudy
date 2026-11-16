@@ -13,7 +13,8 @@ studyMethodSettings(
   leadRank = 1L,
   localWeighting = "sampleSize",
   pooledTuning = "databases",
-  adapEigenDiagnostics = "all"
+  adapEigenDiagnostics = "all",
+  dualAvgCenter = FALSE
 )
 }
 \arguments{
@@ -45,7 +46,15 @@ default, each training database held out in turn) or \code{"rows"}
 \item{adapEigenDiagnostics}{ADAP's eigendecomposition diagnostics: \code{"all"}
 (the default, as in the main analysis), \code{"final"} (final fit and the
 server's correction only) or \code{"none"}. They cost O(p^3) each and dominate
-the run time at thousands of predictors; the fitted models are the same.}
+the run time at thousands of predictors; the fitted models are the same.
+Always passed, because the framework's default became \code{"final"} after the
+main analysis.}
+
+\item{dualAvgCenter}{Whether DualAvg centres non-binary predictors at their
+pooled training mean and codes prevalent binary predictors the other way
+round before fitting (the framework's \code{centerPredictors}). The objective
+and its solution are unchanged; DualAvg converges faster when a predictor
+is nearly collinear with the intercept. \code{FALSE} in the main analysis.}
 }
 \value{
 A list of \code{methodSettings} objects. Settings at their defaults add

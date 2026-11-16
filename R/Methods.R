@@ -45,14 +45,21 @@ studyMethods <- function() {
 #'   (the default, as in the main analysis), `"final"` (final fit and the
 #'   server's correction only) or `"none"`. They cost O(p^3) each and dominate
 #'   the run time at thousands of predictors; the fitted models are the same.
-#' @return A list of `methodSettings` objects. Settings at their defaults add
-#'   no options, so main-analysis runs are unchanged.
+#'   Always passed, because the framework's default became `"final"` after the
+#'   main analysis.
+#' @param dualAvgCenter Whether DualAvg centres non-binary predictors at their
+#'   pooled training mean and codes prevalent binary predictors the other way
+#'   round before fitting (the framework's `centerPredictors`). The objective
+#'   and its solution are unchanged; DualAvg converges faster when a predictor
+#'   is nearly collinear with the intercept. `FALSE` in the main analysis.
+#' @return A list of `methodSettings` objects. Other settings at their defaults
+#'   add no options, so main-analysis runs are unchanged.
 #' @export
 studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10,
                                 dualAvgLambda = NULL, dualAvgRounds = 10000L,
                                 adapInitBackend = "glmnet_sparse", leadRank = 1L,
                                 localWeighting = "sampleSize", pooledTuning = "databases",
-                                adapEigenDiagnostics = "all") {
+                                adapEigenDiagnostics = "all", dualAvgCenter = FALSE) {
   if (!length(methods) || !all(methods %in% studyMethods())) {
     stop("methods must name studyMethods(): ", paste(studyMethods(), collapse = ", "), call. = FALSE)
   }
@@ -65,13 +72,17 @@ studyMethodSettings <- function(methods = studyMethods(), dualAvgEpsilon = 1e-10
   localWeighting <- match.arg(localWeighting, c("sampleSize", "equalClient"))
   pooledTuning <- match.arg(pooledTuning, c("databases", "rows"))
   adapEigenDiagnostics <- match.arg(adapEigenDiagnostics, c("all", "final", "none"))
-  eigenOption <- if (adapEigenDiagnostics != "all") list(adapEigenDiagnostics = adapEigenDiagnostics)
+  eigenOption <- list(adapEigenDiagnostics = adapEigenDiagnostics)
+  if (!is.logical(dualAvgCenter) || length(dualAvgCenter) != 1L || is.na(dualAvgCenter)) {
+    stop("dualAvgCenter must be TRUE or FALSE", call. = FALSE)
+  }
   lead <- if (leadRank != 1L) list(leadRank = as.integer(leadRank))
   lapply(methods, function(method) {
     options <- switch(method,
       DualAvg = c(list(k = 1L, etaClient = 1, etaServer = 1, epsilon = dualAvgEpsilon,
         dualavgRounds = as.integer(dualAvgRounds)),
-        if (!is.null(dualAvgLambda)) list(dualavgTuneLambda = FALSE, dualavgLambda = dualAvgLambda)),
+        if (!is.null(dualAvgLambda)) list(dualavgTuneLambda = FALSE, dualavgLambda = dualAvgLambda),
+        if (dualAvgCenter) list(centerPredictors = TRUE)),
       ODAL1 = , ODAL2 = c(list(odalInit = "ridgeFallback", odalRidgeLambda = 1e-8, epsilon = 1e-10), lead),
       ADAP1 = , ADAP2 = c(list(epsilon = 1e-10, adapInitFolds = 3L, adapInitStratify = TRUE),
         if (!is.null(adapInitBackend)) list(adapInitBackend = adapInitBackend), lead, eigenOption),

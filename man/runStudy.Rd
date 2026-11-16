@@ -23,7 +23,8 @@ runStudy(
   localWeighting = "sampleSize",
   pooledTuning = "databases",
   rerunErrors = FALSE,
-  adapEigenDiagnostics = "all"
+  adapEigenDiagnostics = "all",
+  dualAvgCenter = FALSE
 )
 }
 \arguments{
@@ -67,6 +68,9 @@ otherwise a resumed run keeps them as they are.}
 
 \item{adapEigenDiagnostics}{ADAP's eigendecomposition diagnostics, passed to
 \code{\link[=studyMethodSettings]{studyMethodSettings()}}: \code{"all"} (the default), \code{"final"} or \code{"none"}.}
+
+\item{dualAvgCenter}{Centre predictors for DualAvg, passed to
+\code{\link[=studyMethodSettings]{studyMethodSettings()}}; \code{FALSE} in the main analysis.}
 }
 \value{
 The results table, invisibly.

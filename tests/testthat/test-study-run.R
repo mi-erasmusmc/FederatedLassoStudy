@@ -17,7 +17,7 @@ test_that("method settings carry the previous run's non-default options", {
   expect_identical(options$ODAL2$odalInit, "ridgeFallback")
   expect_identical(options$ADAP1$adapInitBackend, "glmnet_sparse")
   expect_identical(options$ADAP2, list(epsilon = 1e-10, adapInitFolds = 3L,
-    adapInitStratify = TRUE, adapInitBackend = "glmnet_sparse"))
+    adapInitStratify = TRUE, adapInitBackend = "glmnet_sparse", adapEigenDiagnostics = "all"))
   expect_identical(options$PooledLasso, list())
   fixed <- studyMethodSettings("DualAvg", dualAvgEpsilon = 1e-8, dualAvgLambda = 0.02)[[1]]$options
   expect_identical(fixed[c("epsilon", "dualavgTuneLambda", "dualavgLambda")],

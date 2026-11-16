@@ -249,8 +249,7 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
       ifelse(method %in% localMethods, background[["local"]], background[["federated"]])), levels = groups)
   }
   methods <- c("PooledLasso", names(figureLabels$method))
-  rows <- evaluations[evaluations$featureSet == featureSet & evaluations$method %in% methods &
-    is.finite(evaluations$calibrationInTheLarge), , drop = FALSE]
+  rows <- evaluations[evaluations$featureSet == featureSet & evaluations$method %in% methods, , drop = FALSE]
   rows$group <- groupOf(rows$method)
   rows$task <- factor(figureLabels$task[rows$task], levels = figureLabels$task)
   rows$database <- databaseFactor(rows$heldOutDatabase, reverse = TRUE)
@@ -260,19 +259,37 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
       value = rows$calibrationInTheLarge, ideal = 0),
     data.frame(rows[c("task", "database", "group", "flagged")], measure = measures[[2]],
       value = rows$calibrationSlope, ideal = 1))
+  long <- long[is.finite(long$value), , drop = FALSE]
   long$measure <- factor(long$measure, levels = measures)
   long$shape <- paste(long$group, long$flagged)
+  # Values beyond the axis are drawn at its edge as an arrowhead and named in the caption.
+  axisLimits <- list(`Calibration-in-the-large` = c(-1.5, 1.5), `Calibration slope` = c(0.25, 2))
+  low <- mapply(function(m, v) v < axisLimits[[m]][[1]], as.character(long$measure), long$value)
+  high <- mapply(function(m, v) v > axisLimits[[m]][[2]], as.character(long$measure), long$value)
+  beyond <- long[low | high, , drop = FALSE]
+  beyondNote <- if (nrow(beyond)) paste0("\nArrowheads: beyond the axis (",
+    paste(sprintf("%s, %s, %s: %s %.2f", beyond$group, beyond$task, beyond$database,
+      tolower(as.character(beyond$measure)), beyond$value), collapse = "; "), ").") else ""
+  long$value[low] <- vapply(as.character(long$measure[low]), function(m) axisLimits[[m]][[1]], numeric(1))
+  long$value[high] <- vapply(as.character(long$measure[high]), function(m) axisLimits[[m]][[2]], numeric(1))
+  long$shape[low] <- "beyond low"
+  long$shape[high] <- "beyond high"
+  long$beyond <- low | high
   # Highlighted workflows sit above and below the row, the others on it.
   long$y <- as.numeric(long$database) + c(0, 0.22, -0.22, 0, 0)[as.integer(long$group)]
   long <- long[order(!long$group %in% background), ]
   # Filled markers, hollow when flagged; the local-model baselines are never flagged.
-  shapeValues <- stats::setNames(c(3, 3, 16, 1, 17, 2, 15, 0, 4, 4), paste(rep(groups, each = 2), c(FALSE, TRUE)))
+  shapeValues <- c(stats::setNames(c(3, 3, 16, 1, 17, 2, 15, 0, 4, 4), paste(rep(groups, each = 2), c(FALSE, TRUE))),
+    `beyond low` = 60, `beyond high` = 62)
   ideal <- unique(long[c("measure", "ideal")])
   levels <- levels(long$database)
   measuresPlot <- ggplot2::ggplot(long, ggplot2::aes(x = .data$value, y = .data$y)) +
     ggplot2::geom_vline(data = ideal, ggplot2::aes(xintercept = .data$ideal), colour = figureInk[["muted"]],
       linewidth = 0.4) +
-    ggplot2::geom_point(ggplot2::aes(colour = .data$group, shape = .data$shape), size = 1.7, stroke = 0.6) +
+    ggplot2::geom_point(data = long[!long$beyond, , drop = FALSE],
+      ggplot2::aes(colour = .data$group, shape = .data$shape), size = 1.7, stroke = 0.6) +
+    ggplot2::geom_point(data = long[long$beyond, , drop = FALSE],
+      ggplot2::aes(colour = .data$group, shape = .data$shape), size = 4.5, show.legend = FALSE) +
     ggplot2::facet_grid(task ~ measure, scales = "free_x", switch = "y") +
     ggplot2::scale_y_continuous(breaks = seq_along(levels), labels = levels) +
     ggplot2::scale_colour_manual(values = colours, drop = FALSE) +
@@ -283,7 +300,7 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
       caption = paste0("Held-out database per row. Ideal: 0 for calibration-in-the-large, 1 for the slope.\n",
         "Negative calibration-in-the-large means predicted risk above observed. Hollow: flagged fit.\n",
         "Other federated workflows: ODAL2, ADAP2, ADAP1. ",
-        "Local-model baselines: coefficient average, probability ensemble, largest database.")) +
+        "Local-model baselines: coefficient average, probability ensemble, largest database.", beyondNote)) +
     figureTheme() +
     ggplot2::theme(strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 90),
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
@@ -314,7 +331,7 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
     ggplot2::geom_text(data = offScale, ggplot2::aes(label = .data$label), x = -Inf, y = Inf, hjust = -0.04,
       vjust = 1.4, size = 2.1, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
     ggplot2::facet_grid(. ~ database) +
-    ggplot2::scale_colour_manual(values = colours, guide = "none") +
+    ggplot2::scale_colour_manual(values = colours, breaks = unname(highlighted), name = NULL) +
     ggplot2::scale_x_log10(breaks = breaks, labels = percent) +
     ggplot2::scale_y_log10(breaks = breaks, labels = percent) +
     ggplot2::coord_cartesian(xlim = limits, ylim = limits, expand = FALSE) +
@@ -357,7 +374,7 @@ calibrationFigure <- function(rows) {
   offScale <- offScale[rowSums(offScale[names(sides)]) > 0, , drop = FALSE]
   offScale$label <- vapply(seq_len(nrow(offScale)), function(i) {
     counts <- unlist(offScale[i, names(sides)])
-    paste("Off scale:", paste(counts[counts > 0], names(counts)[counts > 0], collapse = ", "))
+    paste0("Off scale:\n", paste(counts[counts > 0], names(counts)[counts > 0], collapse = ", "))
   }, character(1))
   breaks <- c(0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5)
   percent <- function(x) paste0(formatC(100 * x, format = "fg", digits = 2), "%")
@@ -443,24 +460,21 @@ withCaption <- function(grob, caption) {
       gp = grid::gpar(fontsize = 7.2, col = figureInk[["secondary"]], lineheight = 1.1)))
 }
 
-# The eight workflows in three families, since only three categorical
-# colours stay distinguishable in a scatter.
-workflowFamily <- function(method) {
-  families <- c("DualAvg, ADAP2, ODAL2", "ODAL1, ADAP1", "Local-model baselines")
-  slot <- c(DualAvg = 1L, ADAP2 = 1L, ODAL2 = 1L, ODAL1 = 2L, ADAP1 = 2L, LocalAvgLasso = 3L,
-    LocalEnsembleLasso = 3L, BiggestSiteLasso = 3L)[method]
-  factor(families[slot], levels = families)
-}
-
 # Fidelity against performance: does a workflow that reproduces pooled lasso
 # more closely also do better in the held-out database?
 fidelityFigure <- function(auc) {
   .data <- ggplot2::.data
   rows <- auc[auc$method %in% names(figureLabels$method) & is.finite(auc$aucDifference) &
     is.finite(auc$linearPredictorPearson), , drop = FALSE]
-  rows$family <- workflowFamily(rows$method)
-  rows$shape <- paste(as.integer(rows$family), rows$flagged)
-  shapes <- c(`1 FALSE` = 16, `1 TRUE` = 1, `2 FALSE` = 17, `2 TRUE` = 2, `3 FALSE` = 15, `3 TRUE` = 0)
+  # Colour by family; the local-model baselines also by symbol, since they differ in agreement.
+  groupLabels <- c("DualAvg, ADAP2, ODAL2", "ODAL1, ADAP1", "Coefficient average", "Probability ensemble",
+    "Largest database")
+  slot <- c(DualAvg = 1L, ADAP2 = 1L, ODAL2 = 1L, ODAL1 = 2L, ADAP1 = 2L, LocalAvgLasso = 3L,
+    LocalEnsembleLasso = 4L, BiggestSiteLasso = 5L)[rows$method]
+  rows$family <- factor(groupLabels[slot], levels = groupLabels)
+  rows$shape <- paste(slot, rows$flagged)
+  shapes <- c(`1 FALSE` = 16, `1 TRUE` = 1, `2 FALSE` = 17, `2 TRUE` = 2, `3 FALSE` = 15, `3 TRUE` = 0,
+    `4 FALSE` = 18, `4 TRUE` = 5, `5 FALSE` = 4, `5 TRUE` = 4)
   # Closeness is -log10(1 - correlation), so each step to the right is one more 9.
   rows$closeness <- -log10(pmax(1 - rows$linearPredictorPearson, 1e-6))
   cuts <- c(0.90, 0.95, 0.98, 0.995)
@@ -477,7 +491,8 @@ fidelityFigure <- function(auc) {
     ggplot2::geom_hline(yintercept = 0, colour = figureInk[["muted"]], linewidth = 0.4),
     ggplot2::geom_point(ggplot2::aes(colour = .data$family, shape = .data$shape), size = 1.5, stroke = 0.55,
       alpha = 0.85),
-    ggplot2::scale_colour_manual(values = stats::setNames(figureTaskColors, levels(rows$family)), drop = FALSE),
+    ggplot2::scale_colour_manual(values = stats::setNames(figureTaskColors[c(1, 2, 3, 3, 3)], levels(rows$family)),
+      drop = FALSE),
     ggplot2::scale_shape_manual(values = shapes, guide = "none"),
     ggplot2::scale_y_continuous(labels = signedNumber),
     ggplot2::coord_cartesian(ylim = limits),
@@ -489,8 +504,8 @@ fidelityFigure <- function(auc) {
     ggplot2::geom_segment(data = medians, ggplot2::aes(x = .data$from, xend = .data$to, y = .data$median,
       yend = .data$median), colour = figureInk[["primary"]], linewidth = 0.9, inherit.aes = FALSE) +
     ggplot2::scale_x_continuous(breaks = breaks, labels = as.character(1 - 10^-breaks)) +
-    ggplot2::guides(colour = ggplot2::guide_legend(override.aes = list(shape = c(16, 17, 15), size = 2.2,
-      alpha = 1))) +
+    ggplot2::guides(colour = ggplot2::guide_legend(nrow = 2, override.aes = list(shape = c(16, 17, 15, 18, 4),
+      size = 2.2, alpha = 1))) +
     ggplot2::labs(x = "Correlation with pooled lasso's linear predictor", y = "AUC difference from pooled lasso",
       tag = "A")
   overlap <- ggplot2::ggplot(rows[is.finite(rows$top1Overlap), , drop = FALSE],
@@ -501,10 +516,9 @@ fidelityFigure <- function(auc) {
       tag = "B") +
     ggplot2::theme(axis.text.y = ggplot2::element_blank(), legend.position = "none")
   deferredFigure(function() withCaption(alignedPlots(list(closeness, overlap)), paste0(
-    "Each marker is one workflow in one task, held-out database and predictor set; hollow: flagged fit. ",
-    "Black lines (A): median difference of the unflagged fits\nwith correlation up to 0.90, 0.95, 0.98, 0.995 ",
-    "and above. Local-model baselines: coefficient average, probability ensemble, largest database. ",
-    "The axis in A is\nlogarithmic in 1 minus the correlation.")))
+    "Each marker is one workflow in one task, held-out database and predictor set; hollow: flagged fit.\n",
+    "Black lines (A): median difference of the unflagged fits with correlation up to 0.90, 0.95, 0.98, 0.995 ",
+    "and above.\nThe axis in A is logarithmic in 1 minus the correlation.")))
 }
 
 # Case mix against validity: pooled lasso's model-based AUC (what its risks

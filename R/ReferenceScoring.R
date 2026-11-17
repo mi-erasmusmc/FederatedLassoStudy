@@ -10,9 +10,17 @@
 #' predicted risk, calibration-in-the-large, slope, the calibration curve and
 #' the integrated calibration index.
 #'
+#' With `scoreConverged`, the converged models of [runConvergedReference()] are
+#' scored again from their exported coefficients: the pooled data at DualAvg's
+#' penalty, each converged local lasso, and the coefficient average, probability
+#' ensemble and largest-database model built from the converged local lassos
+#' with the saved models' weights and databases. This recomputes their
+#' calibration curves with the installed framework without refitting.
+#'
 #' The `export` directory holds `referenceScores` and `referenceCurves` in the
 #' format of [runConvergedReference()] (the converged pooled lasso first in each
-#' evaluation, `kind` converged; every scored model `kind` saved), and
+#' evaluation, `kind` converged; every scored model `kind` saved, and the
+#' rescored converged models `kind` converged), and
 #' `scoredCoefficients`, the scored models' coefficients by covariate id. Only
 #' aggregate tables are written.
 #'
@@ -23,14 +31,16 @@
 #' @param outputDirectory Directory for the `export` tables.
 #' @param tasks,featureSets,holdouts The evaluations to score; evaluations
 #'   without a saved model are skipped.
+#' @param scoreConverged Also score the converged models whose coefficients
+#'   `referenceDirectory` exports.
 #' @return The export tables, invisibly.
 #' @export
 runReferenceScoring <- function(dataRoot, siteIds, resultsDirectories, referenceDirectory, outputDirectory,
                                 tasks = names(studyTasks()), featureSets = c("ageSexPhenotypes", "ageSexConditions"),
-                                holdouts = siteIds, taskDirectories = NULL) {
-  reference <- utils::read.csv(file.path(referenceDirectory, "export", "referenceCoefficients.csv"),
-    stringsAsFactors = FALSE, colClasses = c(covariateId = "character"))
-  reference <- reference[reference$model == "convergedPooled", , drop = FALSE]
+                                holdouts = siteIds, taskDirectories = NULL, scoreConverged = TRUE) {
+  exported <- utils::read.csv(file.path(referenceDirectory, "export", "referenceCoefficients.csv"),
+    stringsAsFactors = FALSE, colClasses = c(covariateId = "character", sourceDatabase = "character"))
+  reference <- exported[exported$model == "convergedPooled", , drop = FALSE]
   available <- scoredModels(resultsDirectories)
   tables <- list(referenceScores = list(), referenceCurves = list(), scoredCoefficients = list())
   for (featureSet in featureSets) for (task in tasks) {
@@ -77,6 +87,11 @@ runReferenceScoring <- function(dataRoot, siteIds, resultsDirectories, reference
             covariateId = names(coefficients), coefficient = unname(coefficients), stringsAsFactors = FALSE)
         }
       }
+      if (isTRUE(scoreConverged)) {
+        converged <- exported[exported$task == task & exported$featureSet == featureSet &
+          exported$heldOutDatabase == holdout & exported$model != "convergedPooled", , drop = FALSE]
+        candidates <- c(candidates, convergedCandidates(converged, saved, columns, test$xMatrix))
+      }
       scored <- scoreAgainstReference(test$yLabels, candidates)
       tables$referenceScores[[length(tables$referenceScores) + 1L]] <- cbind(key, scored$scores)
       if (!is.null(scored$curves) && nrow(scored$curves)) {
@@ -89,4 +104,51 @@ runReferenceScoring <- function(dataRoot, siteIds, resultsDirectories, reference
   out <- lapply(tables, function(rows) if (length(rows)) do.call(rbind, rows) else data.frame())
   writeExport(outputDirectory, out)
   invisible(out)
+}
+
+# Candidates for scoreAgainstReference() from the exported converged coefficients of one evaluation: the
+# pooled data at DualAvg's penalty, the coefficient average, the probability ensemble and largest-database
+# model rebuilt from the converged local lassos with the saved models' weights and databases, and each
+# converged local lasso, in the order runConvergedReference() scores them.
+convergedCandidates <- function(rows, saved, columns, x) {
+  coefficientsOf <- function(model, source = NA_character_) {
+    keep <- rows$model == model & (if (is.na(source)) is.na(rows$sourceDatabase) | rows$sourceDatabase == "" else
+      !is.na(rows$sourceDatabase) & rows$sourceDatabase == source)
+    r <- rows[keep, , drop = FALSE]
+    if (!nrow(r)) return(NULL)
+    if (nrow(r) != length(columns) || !setequal(r$covariateId, columns)) {
+      stop("The exported ", model, if (!is.na(source)) paste0(" (", source, ")"),
+        " coefficients do not match the scored predictors", call. = FALSE)
+    }
+    r$coefficient[match(columns, r$covariateId)]
+  }
+  lp <- function(w) as.numeric(x %*% w)
+  candidate <- function(model, linearPredictor, probability = stats::plogis(linearPredictor), source = NA_character_) {
+    list(model = model, kind = "converged", source = source, probability = probability,
+      linearPredictor = linearPredictor)
+  }
+  out <- list()
+  for (model in c("convergedDualAvgPenalty", "convergedLocalAvgLasso")) {
+    w <- coefficientsOf(model)
+    if (!is.null(w)) out[[length(out) + 1L]] <- candidate(model, lp(w))
+  }
+  sources <- unique(rows$sourceDatabase[rows$model == "convergedLocal"])
+  local <- stats::setNames(lapply(sources, function(site) coefficientsOf("convergedLocal", site)), sources)
+  siteOf <- function(component) as.character(component$sourceClientId)
+  if (!is.null(saved$BiggestSiteLasso)) {
+    site <- siteOf(saved$BiggestSiteLasso$models[[1]])
+    if (site %in% sources) out[[length(out) + 1L]] <- candidate("convergedBiggestSiteLasso", lp(local[[site]]))
+  }
+  if (!is.null(saved$LocalEnsembleLasso)) {
+    models <- saved$LocalEnsembleLasso$models
+    sites <- vapply(models, siteOf, character(1))
+    if (all(sites %in% sources)) {
+      weights <- vapply(models, `[[`, numeric(1), "weight")
+      probability <- as.numeric(do.call(cbind, lapply(local[sites], function(w) stats::plogis(lp(w)))) %*% weights)
+      out[[length(out) + 1L]] <- candidate("convergedLocalEnsembleLasso",
+        stats::qlogis(pmin(pmax(probability, 1e-15), 1 - 1e-15)), probability)
+    }
+  }
+  for (site in sources) out[[length(out) + 1L]] <- candidate("convergedLocal", lp(local[[site]]), source = site)
+  out
 }

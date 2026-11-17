@@ -20,7 +20,7 @@ Imports:
     stats,
     utils
 Remotes:
-    mi-erasmusmc/FederatedLearning@4459b2f4c3865888ce0b6ae708a6b6dacddb3809
+    mi-erasmusmc/FederatedLearning@c273791ee8656510795d487aeeefa1f13bc6cf46
 Suggests:
     ggplot2,
     testthat (>= 3.0.0)

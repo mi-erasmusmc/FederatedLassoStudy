@@ -4,13 +4,15 @@ Study package for comparing federated, local and pooled logistic prediction
 workflows across five OMOP CDM databases, with leave-one-database-out external
 validation. Models are fitted with the
 [FederatedLearning](https://github.com/mi-erasmusmc/FederatedLearning)
-framework, pinned to commit `4459b2f` (after release `v0.3.0`). The main and
+framework, pinned to commit `c273791` (after release `v0.3.0`). The main and
 sensitivity analyses ran with `df1927c`. `ced6250` corrects
 calibration-in-the-large, which `df1927c` reported as the free-slope
 recalibration intercept, `dddc0b5` adds `adapEigenDiagnostics`, which can
 skip ADAP's eigendecomposition diagnostics at thousands of predictors, and
 `8c5f1c0` adds `centerPredictors` for DualAvg, and `4459b2f` solves
-calibration-in-the-large by root finding where glm's iteration runs off. `42910f0` changed the
+calibration-in-the-large by root finding where glm's iteration runs off, and `c273791` draws
+calibration curves over the full prediction range except the 10 most extreme entries at each
+end. `42910f0` changed the
 framework's ADAP defaults; `studyMethodSettings()` sets every ADAP option the
 main analysis used explicitly, so study runs are unaffected.
 
@@ -21,10 +23,12 @@ against the converged pooled lasso with `runReferenceScoring()` and writes
 `dualAvgCentred.tar.gz`. It needs `results/convergedCalibrated` from
 `RunConvergedReference.R`.
 
-Rescoring: `inst/extras/RunRescoring.R` scores the main analysis's saved models
-and the ODAL2 condition-predictor fits against the converged pooled lasso with
-the root-finding calibration-in-the-large, reading only the held-out databases,
-and writes `rescored.tar.gz`.
+Rescoring: `inst/extras/RunRescoring.R` scores the main analysis's saved models,
+the converged models rebuilt from their exported coefficients, the ODAL2
+condition-predictor fits and, if present, the centred DualAvg fits against the
+converged pooled lasso with the root-finding calibration-in-the-large and the
+full-range calibration curves, reading only the held-out databases, and writes
+`rescored.tar.gz`.
 
 This package defines the study: its prediction tasks, predictors and method
 settings. Reusable methods live in the framework. Database connection

@@ -13,7 +13,8 @@ runReferenceScoring(
   tasks = names(studyTasks()),
   featureSets = c("ageSexPhenotypes", "ageSexConditions"),
   holdouts = siteIds,
-  taskDirectories = NULL
+  taskDirectories = NULL,
+  scoreConverged = TRUE
 )
 }
 \arguments{
@@ -28,6 +29,9 @@ holding \code{export/referenceCoefficients.csv}.}
 
 \item{tasks, featureSets, holdouts}{The evaluations to score; evaluations
 without a saved model are skipped.}
+
+\item{scoreConverged}{Also score the converged models whose coefficients
+\code{referenceDirectory} exports.}
 }
 \value{
 The export tables, invisibly.
@@ -44,9 +48,17 @@ predicted risk, calibration-in-the-large, slope, the calibration curve and
 the integrated calibration index.
 }
 \details{
+With \code{scoreConverged}, the converged models of \code{\link[=runConvergedReference]{runConvergedReference()}} are
+scored again from their exported coefficients: the pooled data at DualAvg's
+penalty, each converged local lasso, and the coefficient average, probability
+ensemble and largest-database model built from the converged local lassos
+with the saved models' weights and databases. This recomputes their
+calibration curves with the installed framework without refitting.
+
 The \code{export} directory holds \code{referenceScores} and \code{referenceCurves} in the
 format of \code{\link[=runConvergedReference]{runConvergedReference()}} (the converged pooled lasso first in each
-evaluation, \code{kind} converged; every scored model \code{kind} saved), and
+evaluation, \code{kind} converged; every scored model \code{kind} saved, and the
+rescored converged models \code{kind} converged), and
 \code{scoredCoefficients}, the scored models' coefficients by covariate id. Only
 aggregate tables are written.
 }

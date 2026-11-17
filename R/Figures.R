@@ -47,13 +47,13 @@ writeStudyFigures <- function(reportDirectory, outputDirectory = reportDirectory
   local <- utils::read.csv(file.path(reportDirectory, "localBaselines.csv"), stringsAsFactors = FALSE)
   dir.create(outputDirectory, recursive = TRUE, showWarnings = FALSE)
   figures <- list(
-    discrimination = list(plot = discriminationFigure(evaluations), width = 7.5, height = 5),
+    discrimination = list(plot = discriminationFigure(evaluations), width = 7.5, height = 5.8),
     localBaselines = list(plot = localBaselineFigure(local, evaluations), width = 7.5, height = 6.5)
   )
   if (!is.null(calibrationCurveDirectory)) {
     curves <- utils::read.csv(file.path(calibrationCurveDirectory, "export", "calibrationCurves.csv"),
       stringsAsFactors = FALSE)
-    figures$calibration <- list(plot = calibrationSummaryFigure(evaluations, curves), width = 7.5, height = 9)
+    figures$calibration <- list(plot = calibrationSummaryFigure(evaluations, curves), width = 7.5, height = 10)
   }
   if (!is.null(productionChecksDirectory)) {
     auc <- mainAnalysisChecks(utils::read.csv(file.path(productionChecksDirectory, "export", "auc.csv"),
@@ -140,7 +140,7 @@ makeContent.deferredFigure <- function(x) {
 }
 
 figureTheme <- function() {
-  ggplot2::theme_minimal(base_size = 9) +
+  ggplot2::theme_minimal(base_size = 11) +
     ggplot2::theme(
       text = ggplot2::element_text(colour = figureInk[["primary"]]),
       axis.text = ggplot2::element_text(colour = figureInk[["secondary"]]),
@@ -183,7 +183,7 @@ discriminationFigure <- function(evaluations) {
     ggplot2::geom_point(ggplot2::aes(colour = .data$task, shape = .data$shape), size = 1.8,
       position = ggplot2::position_jitter(height = 0.18, width = 0, seed = 1), stroke = 0.6) +
     ggplot2::geom_point(data = means, shape = 124, size = 5, colour = figureInk[["primary"]]) +
-    ggplot2::geom_text(data = missing, ggplot2::aes(x = 0, label = "Not fitted"), size = 2.6,
+    ggplot2::geom_text(data = missing, ggplot2::aes(x = 0, label = "Not fitted"), size = 3.2,
       colour = figureInk[["secondary"]], fontface = "italic") +
     ggplot2::facet_grid(group ~ featureSet, scales = "free_y", space = "free_y", switch = "y") +
     ggplot2::scale_colour_manual(values = stats::setNames(figureTaskColors[taskSlot], levels(rows$task))) +
@@ -299,7 +299,7 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
     ggplot2::labs(x = NULL, y = NULL, tag = "A",
       caption = paste0("Held-out database per row. Ideal: 0 for calibration-in-the-large, 1 for the slope.\n",
         "Negative calibration-in-the-large means predicted risk above observed. Hollow: flagged fit.\n",
-        "Other federated workflows: ODAL2, ADAP2, ADAP1. ",
+        "Other federated workflows: ODAL2, ADAP2, ADAP1.\n",
         "Local-model baselines: coefficient average, probability ensemble, largest database.", beyondNote)) +
     figureTheme() +
     ggplot2::theme(strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 90),
@@ -327,22 +327,28 @@ calibrationSummaryFigure <- function(evaluations, curves, featureSet = "ageSexPh
   percent <- function(x) paste0(formatC(100 * x, format = "fg", digits = 2), "%")
   curvePlot <- ggplot2::ggplot(curve, ggplot2::aes(x = .data$predicted, y = .data$observed, colour = .data$group)) +
     ggplot2::geom_abline(colour = figureInk[["muted"]], linewidth = 0.3, linetype = "22") +
+    # Pointwise 95% intervals, where the curve export holds them.
+    (if (all(c("lower", "upper") %in% names(curve))) {
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$lower, ymax = .data$upper, fill = .data$group), colour = NA,
+        alpha = 0.15, show.legend = FALSE)
+    }) +
     ggplot2::geom_line(linewidth = 0.55) +
     ggplot2::geom_text(data = offScale, ggplot2::aes(label = .data$label), x = -Inf, y = Inf, hjust = -0.04,
-      vjust = 1.4, size = 2.1, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
+      vjust = 1.4, size = 2.6, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
     ggplot2::facet_grid(. ~ database) +
     ggplot2::scale_colour_manual(values = colours, breaks = unname(highlighted), name = NULL) +
+    ggplot2::scale_fill_manual(values = colours, guide = "none") +
     ggplot2::scale_x_log10(breaks = breaks, labels = percent) +
     ggplot2::scale_y_log10(breaks = breaks, labels = percent) +
     ggplot2::coord_cartesian(xlim = limits, ylim = limits, expand = FALSE) +
     ggplot2::labs(x = "Predicted risk", y = "Observed risk (smoothed)", tag = "B",
       title = paste0(figureLabels$task[[curveTask]], ": calibration curves by held-out database"),
-      caption = paste("Curves span the 1st to 99th percentile of predicted risk in the held-out database.",
-        "Dashed: ideal calibration. Logarithmic axes.")) +
+      caption = paste("Curves cover the predicted risks in the held-out database except the most extreme entries.",
+        "Shaded: pointwise 95% interval.\nDashed: ideal calibration. Logarithmic axes.")) +
     figureTheme() +
     ggplot2::theme(panel.border = ggplot2::element_rect(fill = NA, colour = figureInk[["grid"]]),
       panel.grid.major.y = ggplot2::element_line(colour = figureInk[["grid"]], linewidth = 0.3),
-      panel.spacing = ggplot2::unit(6, "pt"), plot.title = ggplot2::element_text(size = 9),
+      panel.spacing = ggplot2::unit(6, "pt"), plot.title = ggplot2::element_text(size = 11),
       strip.text = ggplot2::element_text(face = "bold", hjust = 0.5),
       axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1),
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
@@ -386,7 +392,7 @@ calibrationFigure <- function(rows) {
     ggplot2::geom_line(ggplot2::aes(colour = .data$series), linewidth = 0.8) +
     ggplot2::geom_line(data = pooled, ggplot2::aes(colour = .data$series), linewidth = 0.3) +
     ggplot2::geom_text(data = offScale, ggplot2::aes(label = .data$label), x = -Inf, y = Inf,
-      hjust = -0.05, vjust = 1.4, size = 2.1, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
+      hjust = -0.05, vjust = 1.4, size = 2.6, colour = figureInk[["secondary"]], inherit.aes = FALSE) +
     ggplot2::facet_grid(database ~ panel, switch = "y") +
     ggplot2::scale_colour_manual(values = c(Workflow = figureTaskColors[[1]], `Pooled lasso` = figureInk[["primary"]]),
       breaks = c("Workflow", "Pooled lasso")) +
@@ -397,10 +403,10 @@ calibrationFigure <- function(rows) {
     ggplot2::coord_cartesian(xlim = limits, ylim = limits, expand = FALSE) +
     ggplot2::labs(x = "Predicted risk", y = "Observed risk (smoothed)",
       title = paste0(figureLabels$task[[rows$task[[1]]]], ", ", tolower(figureLabels$featureSet[[rows$featureSet[[1]]]])),
-      caption = paste("Each curve spans the 1st to 99th percentile of predicted risk in the held-out database,",
-        "with its pointwise 95% interval. Dashed: ideal calibration. Logarithmic axes.")) +
+      caption = paste("Each curve covers the predicted risks in the held-out database except the most extreme",
+        "entries, with its pointwise 95% interval. Dashed: ideal calibration. Logarithmic axes.")) +
     figureTheme() +
-    ggplot2::theme(text = ggplot2::element_text(size = 7.5, colour = figureInk[["primary"]]),
+    ggplot2::theme(text = ggplot2::element_text(size = 9, colour = figureInk[["primary"]]),
       strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 90),
       strip.text.x = ggplot2::element_text(hjust = 0.5),
       panel.border = ggplot2::element_rect(fill = NA, colour = figureInk[["grid"]]),
@@ -457,7 +463,7 @@ withCaption <- function(grob, caption) {
   grid::grobTree(
     grid::grobTree(grob, vp = grid::viewport(y = 1, height = grid::unit(1, "npc") - space, just = "top")),
     grid::textGrob(caption, x = grid::unit(5, "pt"), y = grid::unit(4, "pt"), just = c("left", "bottom"),
-      gp = grid::gpar(fontsize = 7.2, col = figureInk[["secondary"]], lineheight = 1.1)))
+      gp = grid::gpar(fontsize = 8.8, col = figureInk[["secondary"]], lineheight = 1.1)))
 }
 
 # Fidelity against performance: does a workflow that reproduces pooled lasso
@@ -506,13 +512,13 @@ fidelityFigure <- function(auc) {
     ggplot2::scale_x_continuous(breaks = breaks, labels = as.character(1 - 10^-breaks)) +
     ggplot2::guides(colour = ggplot2::guide_legend(nrow = 2, override.aes = list(shape = c(16, 17, 15, 18, 4),
       size = 2.2, alpha = 1))) +
-    ggplot2::labs(x = "Correlation with pooled lasso's linear predictor", y = "AUC difference from pooled lasso",
+    ggplot2::labs(x = "Correlation with pooled lasso's\nlinear predictor", y = "AUC difference from pooled lasso",
       tag = "A")
   overlap <- ggplot2::ggplot(rows[is.finite(rows$top1Overlap), , drop = FALSE],
     ggplot2::aes(x = .data$top1Overlap, y = .data$aucDifference)) +
     points +
     ggplot2::scale_x_continuous(labels = function(x) paste0(round(100 * x), "%")) +
-    ggplot2::labs(x = "Overlap with pooled lasso's top 1% of predicted risk", y = NULL,
+    ggplot2::labs(x = "Overlap with pooled lasso's top 1%\nof predicted risk", y = NULL,
       tag = "B") +
     ggplot2::theme(axis.text.y = ggplot2::element_blank(), legend.position = "none")
   deferredFigure(function() withCaption(alignedPlots(list(closeness, overlap)), paste0(
@@ -555,10 +561,11 @@ validityFigure <- function(auc) {
       figureTaskColors[[2]]), models)) +
     ggplot2::scale_shape_manual(values = stats::setNames(c(1, 3, 17), models)) +
     ggplot2::labs(x = "AUC in the held-out database", y = NULL,
-      caption = paste0("Expected: the AUC pooled lasso would reach if its predicted risks were the true risks ",
-        "in the held-out database (model-based AUC),\nwhich depends on case mix only. Grey line: from expected to ",
-        "observed. Target-database lasso: developed in the held-out database by\nfive-fold cross-validation ",
-        "on the predictors kept by the common filter, scored out of fold.")) +
+      caption = paste0("Expected: the AUC pooled lasso would reach if its predicted risks were the true risks\n",
+        "in the held-out database (model-based AUC), which depends on case mix only.\n",
+        "Grey line: from expected to observed. Target-database lasso: developed in the held-out\n",
+        "database by five-fold cross-validation on the predictors kept by the common filter, scored out of fold.")) +
+    ggplot2::guides(colour = ggplot2::guide_legend(nrow = 2), shape = ggplot2::guide_legend(nrow = 2)) +
     figureTheme() +
     ggplot2::theme(strip.placement = "outside", strip.text.y.left = ggplot2::element_text(angle = 0, hjust = 0),
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
@@ -596,7 +603,7 @@ aucIntervalFigure <- function(auc, featureSet, limits = c(-0.11, 0.085)) {
       yend = .data$y), linewidth = 0.45, arrow = grid::arrow(length = grid::unit(3, "pt"), type = "closed"),
       show.legend = FALSE) +
     ggplot2::geom_text(data = beyond, ggplot2::aes(x = .data$edge - .data$direction * 0.017,
-      label = signedNumber(.data$aucDifference, 2), hjust = .data$hjust), size = 2.2,
+      label = signedNumber(.data$aucDifference, 2), hjust = .data$hjust), size = 2.7,
       colour = figureInk[["secondary"]], show.legend = FALSE) +
     ggplot2::facet_wrap(~ panel, ncol = 3) +
     ggplot2::scale_y_continuous(breaks = breaks,
@@ -613,7 +620,7 @@ aucIntervalFigure <- function(auc, featureSet, limits = c(-0.11, 0.085)) {
         "Arrow: estimate beyond the axis, with its value.\nA missing row is a fit that failed.")) +
     figureTheme() +
     ggplot2::theme(panel.border = ggplot2::element_rect(fill = NA, colour = figureInk[["grid"]]),
-      axis.text.y = ggplot2::element_text(size = 6.5), plot.title = ggplot2::element_text(face = "bold"),
+      axis.text.y = ggplot2::element_text(size = 8), plot.title = ggplot2::element_text(face = "bold"),
       plot.caption = ggplot2::element_text(colour = figureInk[["secondary"]], hjust = 0))
 }
 
@@ -653,7 +660,7 @@ costFigure <- function(communication, auc) {
       ggplot2::scale_shape_manual(values = shapes, drop = FALSE) +
       ggplot2::labs(x = NULL, y = NULL, title = title) +
       figureTheme() +
-      ggplot2::theme(plot.title = ggplot2::element_text(size = 8, face = "bold"),
+      ggplot2::theme(plot.title = ggplot2::element_text(size = 10, face = "bold"),
         panel.grid.major.y = ggplot2::element_line(colour = figureInk[["grid"]], linewidth = 0.3),
         axis.text.y = if (first) ggplot2::element_text(colour = figureInk[["secondary"]]) else ggplot2::element_blank(),
         legend.position = if (first) "top" else "none", plot.margin = ggplot2::margin(5, 8, 5, 2))

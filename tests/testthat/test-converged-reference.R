@@ -100,7 +100,7 @@ test_that("converged refits meet the optimality conditions and the converged com
   drawn <- paste(scores$model, scores$sourceDatabase) %in% unique(paste(curves$model, curves$sourceDatabase))
   expect_identical(is.finite(scores$calibrationIci), drawn)
   expect_true(drawn[[1]])
-  expect_true(all(table(paste(curves$model, curves$sourceDatabase)) <= 50L))
+  expect_true(all(table(paste(curves$model, curves$sourceDatabase)) <= 150L))
   expect_true(all(curves$lower <= curves$observed & curves$observed <= curves$upper))
 })
 
